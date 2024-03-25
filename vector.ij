@@ -1,0 +1,71 @@
+#ifndef __VECTOR_IJ__
+#define __VECTOR_IJ__
+
+// === vector.ij ===
+
+class vector_t {
+  double x;
+  double y;
+  double z;
+  
+  vector_t(double x, double y, double z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+  
+  vector_t add(vector_t vector) {
+    return new vector_t(this.x + vector.x, this.y + vector.y, this.z + vector.z);
+  }
+  
+  vector_t subtract(vector_t vector) {
+    return new vector_t(this.x - vector.x, this.y - vector.y, this.z - vector.z);
+  }
+  
+  vector_t multiply(double scalar) {
+    return new vector_t(this.x * scalar, this.y * scalar, this.z * scalar);
+  }
+  
+  vector_t divide(double scalar) {
+    return new vector_t(this.x / scalar, this.y / scalar, this.z / scalar);
+  }
+  
+  vector_t normal() {
+    double length = sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+    return new vector_t(this.x / length, this.y / length, this.z / length);
+  }
+  
+  double length() {
+    return sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+  }
+  
+  double dot(vector_t vector) {
+    return x * vector.x + y * vector.y + z * vector.z;
+  }
+  
+  vector_t cross(vector_t vector) {
+    return new vector_t(this.y * vector.z - this.z * vector.y, this.z * vector.x - this.x * vector.z, this.x * vector.y - this.y * vector.x);
+  }
+  
+  vector_t rotate_x(double angle) {
+    return new vector_t(this.x, this.y * cos(angle) - this.z * sin(angle), this.y * sin(angle) + this.z * cos(angle));
+  }
+  
+  vector_t rotate_y(double angle) {
+    return new vector_t(this.x * cos(angle) - this.z * sin(angle), this.y, this.x * sin(angle) + this.z * cos(angle));
+  }
+  
+  vector_t plane(vector_t line_start, vector_t line_end) {
+    double a = -this.dot(line_start);
+    double b = this.dot(line_end.subtract(line_start));
+    
+    if (b == 0.0) return null;
+    if (a / b < 0.0 || a / b > 1.0) return null;
+    
+    return line_start.add(line_end.subtract(line_start).multiply(a / b));
+  }
+};
+
+// ^^^ vector.ij ^^^
+
+#endif

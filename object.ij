@@ -1,0 +1,52 @@
+#ifndef __OBJECT_IJ__
+#define __OBJECT_IJ__
+
+// === object.ij ===
+
+class object_t {
+  bool free;
+  vector_t point;
+  
+  double angle_x;
+  double angle_y;
+  
+  face_t faces[];
+  double radius;
+  
+  object_t() {
+    this.free = true;
+  }
+  
+  object_t(vector_t point, double angle_x, double angle_y, face_t faces[]) {
+    this.free = false;
+    this.point = point;
+    
+    this.angle_x = angle_x;
+    this.angle_y = angle_y;
+    
+    this.faces = faces;
+    this.radius = 0.0;
+    
+    for (int i = 0; i < faces.length; i++) {
+      double radius_a = faces[i].a.length();
+      double radius_b = faces[i].b.length();
+      double radius_c = faces[i].c.length();
+      
+      if (radius_a > this.radius) {
+        this.radius = radius_a;
+      }
+      
+      if (radius_b > this.radius) {
+        this.radius = radius_b;
+      }
+      
+      if (radius_c > this.radius) {
+        this.radius = radius_c;
+      }
+    }
+  }
+};
+
+// ^^^ object.ij ^^^
+
+#endif

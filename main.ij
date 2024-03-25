@@ -1,0 +1,79 @@
+// KrapKart: Season Tour, by segfaultdev.
+// 
+// Note that this is the resulting code after preprocessing, generating
+// and combining all the files that make the game using the GNU CPP
+// tool. You may find such files at the following URL:
+// 
+// https://github.com/segfaultdev/krapkart
+
+#include <js_inject.ij>
+#include <player.ij>
+#include <render.ij>
+#include <scene.ij>
+
+#include <g_models.ij>
+
+render_t render;
+scene_t scene;
+
+player_t player;
+
+void main() {
+  render = new render_t(0.0, 0.0, 1.0, 320);
+  
+  scene = new scene_t(2000.0, new vector_t(0.6, 1.0, 0.8));
+  scene.init_viewport(0.0, 0.0, 320.0, 320.0);
+  
+  player = new player_t(new vector_t(0.0, 0.0, 0.0), scene.push(new object_t(new vector_t(0.0, 0.0, 0.0), 0.0, 0.0, g_red_kart)));
+  
+  scene.push(new object_t(new vector_t(-9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(-3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
+  
+  js.lock_mouse();
+  
+  animate(draw, 32);
+}
+
+void draw() {
+  background(51);
+  
+  // scene.objects[player.index].point = player.point;
+  // scene.objects[player.index].angle_y = player.angle + PI / 2.0;
+  
+  render.init_frame();
+  
+  // scene.load_faces(player.point.add(new vector_t(0.0, 5.0, -9.0).rotate_y(player.angle)), 0.0, -player.angle);
+  scene.load_faces(player.point.add(new vector_t(0.0, 0.0, 0.0).rotate_y(player.angle)), 0.0, -player.angle);
+  scene.draw_faces(render);
+  
+  render.draw_frame();
+  
+  if (keyPressed) {
+    if (key == "w") {
+      player.point = player.point.add(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
+    } else if (key == "a") {
+      player.angle += 0.03;
+    } else if (key == "s") {
+      player.point = player.point.subtract(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
+    } else if (key == "d") {
+      player.angle -= 0.03;
+    }
+    
+    if (key == "q") {
+      player.point.y += 0.3;
+    } else if (key == "z") {
+      player.point.y -= 0.3;
+    }
+  }
+}
+
+void on_event(js_event_t event) {
+  if (event.name == "lock_delta") {
+    double delta_x = event.data_double[0];
+    double delta_y = event.data_double[1];
+    
+    player.angle -= delta_x / 320.0;
+  }
+}

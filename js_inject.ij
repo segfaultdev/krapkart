@@ -1,0 +1,152 @@
+#ifndef __JS_INJECT_IJ__
+#define __JS_INJECT_IJ__
+
+#ifndef JS_EVENT_LIMIT
+#define JS_EVENT_LIMIT 256
+#endif
+
+#include <g_scripts.ij>
+
+// === js_inject.ij ===
+
+class js_event_t {
+  String name;
+  
+  String data_string[];
+  double data_double[];
+  
+  js_event_t() {
+    ;
+  };
+};
+
+class js_canvas_t {
+  js_canvas_t() {
+    ;
+  }
+  
+  void rect(double x, double y, double width, double height) {
+    ;
+  }
+};
+
+class js_t {
+  js_event_t event_queue[];
+  
+  int event_head;
+  int event_tail;
+  
+  int main;
+  int on_event;
+  
+  js_t() {
+    ;
+  }
+  
+  void eval_raw(int code) {
+    ;
+  }
+  
+  void eval(String code) {
+    eval_raw(string_to_array(code)[string_to_int("__data")]);
+  }
+  
+  void loader() {
+    char dummy[] = {' '};
+    char array[] = (true ? js : js) ? dummy : dummy;
+    
+    int new_array[] = string_to_array("hello");
+    int window = (true ? this : this) ? 0 : 0;
+    
+    new_array[string_to_int("__data")] = window;
+    String this_str = (true ? new_array : new_array) ? "" : "";
+    
+    array[string_to_int("__eval_raw__0")] = this_str.charAt(string_to_int("eval"));
+    
+    this.main = (true ? main_js : main_js) ? 0 : 0;
+    this.on_event = (true ? on_event_js : on_event_js) ? 0 : 0;
+    
+    js.eval(
+      "if (window.js_inject_successful) {" +
+      "  window.send_event = function(name, data) {" +
+      "    window.__on_event({" +
+      "      __name: new __String(name)," +
+      "      __data_string: data.map(function(x) {return new __String(x);})," +
+      "      __data_double: data," +
+      "    });" +
+      "  };" +
+      "  " +
+      "  window.js_inject_successful = false;" +
+      "  window.__main();" +
+      "} else {" +
+      "  let ijava2javascript_script = document.createElement(\"script\");" +
+      "  ijava2javascript_script.innerHTML = " + g_ijava2javascript_js + ";" +
+      "  " +
+      "  let custom_script = document.createElement(\"script\");" +
+      "  custom_script.innerHTML = " + g_custom_js + ";" +
+      "  " +
+      "  document.body.append(ijava2javascript_script);" +
+      "  document.body.append(custom_script);" +
+      "  " +
+      "  setTimeout(function() {" +
+      "    document.getElementById('buttonRun').click();" +
+      "    window.js_inject_successful = true;" +
+      "  }, 1000);" +
+      "  " +
+      "  document.getElementById('buttonRun').click();" +
+      "}"
+    );
+    
+    char context = this_str.charAt(string_to_int("context"));
+    canvas = (true ? context : context) ? canvas : canvas;
+    
+    array = (true ? canvas : canvas) ? dummy : dummy;
+    array[string_to_int("__rect__0")] = array[string_to_int("fillRect")];
+  }
+  
+  void lock_mouse() {
+    js.eval("window.my_canvas.requestPointerLock({unadjustedMovement: true});");
+  }
+  
+  void unlock_mouse() {
+    js.eval("document.exitPointerLock();");
+  }
+};
+
+js_canvas_t canvas = new js_canvas_t();
+js_t js = new js_t();
+
+int[] int_to_array(int x) {
+  int array[] = {0};
+  return (true ? x : x) ? array : array;
+}
+
+int[] string_to_array(String x) {
+  int array[] = {0};
+  return (true ? x : x) ? array : array;
+}
+
+int string_to_int(String x) {
+  return (true ? x : x) ? 0 : 0;
+}
+
+double string_to_double(String x) {
+  return (true ? x : x) ? 0.0 : 0.0;
+}
+
+void main() {
+  int dummy[] = {0};
+  int array[] = (true ? js : js) ? dummy : dummy;
+  
+  int func = array[string_to_int("__loader__0")];
+  animate((true ? func : func) ? main : main, 100);
+}
+
+#define main(...) main_js(__VA_ARGS__)
+#define on_event(...) on_event_js(__VA_ARGS__)
+
+#define rect(...) canvas.rect(__VA_ARGS__)
+
+// ^^^ js_inject.ij ^^^
+
+#endif

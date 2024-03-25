@@ -1,0 +1,222 @@
+#ifndef __SCENE_IJ__
+#define __SCENE_IJ__
+
+#ifndef SCENE_OBJECT_LIMIT
+#define SCENE_OBJECT_LIMIT 64
+#endif
+
+#ifndef SCENE_FACE_LIMIT
+#define SCENE_FACE_LIMIT 1024
+#endif
+
+#include <object.ij>
+#include <render.ij>
+#include <vector.ij>
+#include <face.ij>
+
+// === scene.ij ===
+
+class scene_t {
+  // Screen-related properties:
+  
+  double width;
+  double height;
+  
+  double center_x;
+  double center_y;
+  
+  double half_length;
+  
+  // Persistent storage:
+  
+  object_t objects[];
+  double radius;
+  
+  vector_t sunlight;
+  
+  // Temporary storage:
+  
+  face_t faces[];
+  int face_count;
+  
+  scene_t(double radius, vector_t sunlight) {
+    this.objects = new object_t[SCENE_OBJECT_LIMIT];
+    this.radius = radius;
+    
+    this.sunlight = sunlight.normal();
+    
+    for (int i = 0; i < SCENE_OBJECT_LIMIT; i++) {
+      this.objects[i] = new object_t();
+    }
+    
+    this.faces = new face_t[SCENE_FACE_LIMIT];
+    this.face_count = 0;
+  }
+  
+  int push(object_t object) {
+    for (int i = 0; i < SCENE_OBJECT_LIMIT; i++) {
+      if (this.objects[i].free) {
+        this.objects[i] = object;
+        return i;
+      }
+    }
+    
+    return -1;
+  }
+  
+  void free(int index) {
+    this.objects[index].free = true;
+  }
+  
+  void init_viewport(double start_x, double start_y, double end_x, double end_y) {
+    this.width = end_x - start_x;
+    this.height = end_y - start_y;
+    
+    this.center_x = start_x + this.width * 0.5;
+    this.center_y = start_y + this.height * 0.5;
+    
+    if (this.width > this.height) {
+      this.half_length = this.width * 0.5;
+    } else {
+      this.half_length = this.height * 0.5;
+    }
+  }
+  
+  void load_single(face_t face) {
+    face_t faces[] = {face};
+    int face_count = 1;
+    
+    const vector_t normals[] = {
+      new vector_t(-2.0, 0.0, this.width / this.half_length).normal(),
+      new vector_t(2.0, 0.0, this.width / this.half_length).normal(),
+      new vector_t(0.0, 2.0, this.height / this.half_length).normal(),
+      new vector_t(0.0, -2.0, this.height / this.half_length).normal(),
+    };
+    
+    for (int i = 0; i < normals.length; i++) {
+      face_t next_faces[] = new face_t[face_count * 2];
+      int next_face_count = 0;
+      
+      const vector_t normal = normals[i];
+      
+      for (int j = 0; j < face_count; j++) {
+        const face_t next_face = faces[j];
+        
+        double dist_a = normal.dot(next_face.a);
+        double dist_b = normal.dot(next_face.b);
+        double dist_c = normal.dot(next_face.c);
+        
+        if (dist_a >= 0.0 && dist_b >= 0.0 && dist_c >= 0.0) {
+          next_faces[next_face_count] = next_face;
+          next_face_count++;
+        } else if (dist_a >= 0.0 && dist_b >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+          
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+        } else if (dist_b >= 0.0 && dist_c >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+          
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+        } else if (dist_c >= 0.0 && dist_a >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+          
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+        } else if (dist_a >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+        } else if (dist_b >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+        } else if (dist_c >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+        }
+      }
+      
+      faces = next_faces;
+      face_count = next_face_count;
+    }
+    
+    for (int i = 0; i < face_count; i++) {
+      this.faces[this.face_count] = faces[i];
+      this.face_count++;
+    }
+  }
+  
+  void load_faces(vector_t camera_point, double angle_x, double angle_y) {
+    this.face_count = 0;
+    
+    for (int i = 0; i < SCENE_OBJECT_LIMIT; i++) {
+      const object_t object = this.objects[i];
+      
+      if (object.free) {
+        continue;
+      }
+      
+      vector_t point = object.point.subtract(camera_point);
+      
+      if (point.length() > this.radius + object.radius) {
+        continue;
+      }
+      
+      for (int j = 0; j < object.faces.length; j++) {
+        const face_t face = object.faces[j];
+        
+        vector_t normal = face.normal.rotate_y(object.angle_y).rotate_y(object.angle_x);
+        // vector_t center = face.a.add(face.b).add(face.c).divide(3.0);
+        
+        /*
+        double view = center.rotate_y(object.angle_y).rotate_y(object.angle_x).add(point).dot(normal);
+        
+        if (view > 0.0) {
+          continue;
+        }
+        */
+        
+        double shade = (abs(normal.dot(this.sunlight)) + 2.0) / 3.0;
+        
+        load_single(new face_t(
+          face.red * shade,
+          face.green * shade,
+          face.blue * shade,
+          
+          normal.rotate_y(angle_y).rotate_x(angle_x),
+          
+          face.a.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+          face.b.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+          face.c.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+        ));
+      }
+    }
+  }
+  
+  void draw_faces(render_t render) {
+    for (int i = 0; i < this.face_count; i++) {
+      const face_t face = this.faces[i];
+      
+      double x0 = (face.a.x / face.a.z) * this.half_length + this.center_x;
+      double y0 = this.center_y - (face.a.y / face.a.z) * this.half_length;
+      double z0 = face.a.z;
+      
+      double x1 = (face.b.x / face.b.z) * this.half_length + this.center_x;
+      double y1 = this.center_y - (face.b.y / face.b.z) * this.half_length;
+      double z1 = face.b.z;
+      
+      double x2 = (face.c.x / face.c.z) * this.half_length + this.center_x;
+      double y2 = this.center_y - (face.c.y / face.c.z) * this.half_length;
+      double z2 = face.c.z;
+      
+      render.push_triangle(floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
+    }
+  }
+};
+
+// ^^^ scene.ij ^^^
+
+#endif

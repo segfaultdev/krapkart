@@ -1,0 +1,34 @@
+#ifndef __FACE_IJ__
+#define __FACE_IJ__
+
+#include <vector.ij>
+
+// === face.ij ===
+
+class face_t {
+  double red;
+  double green;
+  double blue;
+  
+  vector_t a;
+  vector_t b;
+  vector_t c;
+  
+  vector_t normal;
+  
+  face_t(double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+    
+    this.a = a;
+    this.b = b;
+    this.c = c;
+    
+    this.normal = normal;
+  }
+};
+
+// ^^^ face.ij ^^^
+
+#endif

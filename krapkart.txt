@@ -1,0 +1,1077 @@
+// KrapKart: Season Tour, by segfaultdev.
+// 
+// Note that this is the resulting code after preprocessing, generating
+// and combining all the files that make the game using the GNU CPP
+// tool. You may find such files at the following URL:
+// 
+// https://github.com/segfaultdev/krapkart
+
+// === g_scripts.ij ===
+
+final String g_ijava2javascript_js = "`window.iJava2Javascript = function(tree) {  var deep = 0;  var rContext = [];    this.doIt = function() {    console.log(\"Don't worry user, you're now in good hands!\");        deep = 0;    rContext = [];        let translation = translate(tree);        console.log(translation);    return translation;  };  function showArrayInitializer(array, context) {    var s = \"[\";    var i = 0;    for ( ; i < array.length-1 ; i++ ) {      if (array[i] instanceof Array) s += showArrayInitializer(array[i]);      else s += translate(array[i], context);      s += \", \";    }    if (array[i] instanceof Array) s += showArrayInitializer(array[i]);    else s += translate(array[i], context);    s += \"]\";    return s;  }    var intro = function(deep) {    var s = \"\";    for ( var i = 0 ; i < deep ; i++ ) s = s + \"  \";    return s;  };  var translate = function(node, context) {    if (!node) return \"\";       if (node instanceof Array) {      var s = \"\";      for ( var i = 0 ; i < node.length ; i++ ) {        s = s + translate(node[i], context);        s = s + \"\\\\n\";      }      return s;    }       if (node.type === \"value\") {      if (node.id === \"?\") {        var s = \"\";        s = s + translate(node.condition, context);        s = s + \" ? \";        s = s + translate(node.yes, context);         s = s + \" : \";        s = s + translate(node.no, context);         return s;      } else      if (node.id === \"{...}\") {                var s = showArrayInitializer(node.right, context);        return s;      } else       if (node.id === \"(cast)\") {        var s = \"\";        if (node.datatype == IntegerDatatype && node.right.datatype == DoubleDatatype) {          s = s + \"parseInt(\" + translate(node.right, context) + \")\";        } else         if (node.datatype == IntegerDatatype && node.right.datatype == CharDatatype) {          s = s + translate(node.right, context) + \".charCodeAt(0)\";        } else         if (node.datatype == CharDatatype && node.right.datatype == IntegerDatatype) {          s = s + \"String.fromCharCode(\" + translate(node.right, context) + \")\";        } else {          s = s + translate(node.right, context);        }        return s;      } else      if (node.id === \"(literal)\") {        var s = \"\";               if (node.datatype == CharDatatype) {          s = s + '\"' + node.value + '\"';        } else        if (node.datatype == StringDatatype) {          s = s + 'new __String(\"' + node.value + '\")';                  } else {          s = s + node.value;        }        return s;      } else       if (node.id === \"[\") {        return accesoIndexado(node, context);      } else      if (node.id === \"new\") {        return operadorNew(node, context);      } else      if (node.id === \"(call)\") {        return call(node, context);      } else      if (node.id === \".\") {                return accesoNombrado(node, context);      } else {        var done = false;        var s = \"\";        if (node.parentesis) s = s + \"( \";                if ((node.id === \"==\" || node.id === \"!=\") && node.left.datatype == StringDatatype && node.right.datatype == StringDatatype) {           if (node.id === \"!=\") s = s + \"!\";          s = s + translate(node.left, context) + \".execute('__equals__0', [\" + translate(node.right, context) + \"], \" + node.line + \")\";                                        if ( node.parentesis ) s = s + \")\";          return s;        }        if (node.id === \"+\" && node.datatype == StringDatatype) {           if (node.id === \"+\") {            if (node.left.datatype !== StringDatatype) s = s + \"new __String(\";            s = s + translate(node.left, context);            if (node.left.datatype !== StringDatatype) s = s + \")\";            s = s + \".execute('__concat__0', [\" + translate(node.right, context) + \"], \" + node.line + \")\";          }                                        if ( node.parentesis ) s = s + \")\";          return s;        }        if (node.id === \"+=\" && node.datatype == StringDatatype && node.left.datatype == StringDatatype) {          s = s + translate(node.left, context) + \".execute('__append__0', [\" + translate(node.right, context) + \"], \" + node.line + \")\";                                        if ( node.parentesis ) s = s + \")\";          return s;        }                if (!done) {          var closeParenthesis = false;          if (node.datatype == IntegerDatatype) {            if ( node.id === \"/\" || node.id === \"%\") {              closeParenthesis = true;              s = s + \"parseInt(\";            }            if ( node.id === \"/=\" || node.id === \"%=\") {                            node.id = node.id.charAt(0);              closeParenthesis = true;                            s = s + translate(node.left, context) + \" = parseInt(\";            }          }          if (node.left) {            s = s + translate(node.left, \"right\");             s = s + \" \";          }          s = s + node.id;          if (node.right) {            s = s + \" \";            if (node.id === \"instanceof\") s = s + node.right.id;            else s = s + translate(node.right, \"right\");          }          if (closeParenthesis) s = s + \")\";        }        if (node.parentesis) s = s + \" )\";        return s;      }    } else    if (node.type === \"statement\") {            var s = \"\";      if (node.id === \"(block)\") {        var s = \"\";        s = s + intro(deep);        s = s + \"{\";        s = s + \"\\\\n\";        deep++;        if (context === \"(Constructor)\") {          s = s + intro(deep) + \"this.__ObjectConstructor();\\\\n\";        }        s = s + translate(node.right, \"\");        if (context === \"(Constructor)\") {          s = s + intro(deep) + \"return this;\\\\n\";        }        deep--;        s = s + intro(deep);                s = s + \"}\";        return s;      } else      if ( node.id === \"for\") {        var s = \"\";                s = s + intro(deep);                s = s + \"for \";        s = s + \" ( \";        var init = node.initializers ? translate(node.initializers, \"for\") : \";\";        if (node.initializers && node.initializers.statement && node.initializers.type !== \"variable\") init += \" ; \";        var condition = node.condition ? translate(node.condition, context) : \" \";        var action = translate(node.action, context);        s = s + init;        s = s + \" \";        s = s + condition;        s = s + \" ; \";        s = s + action;        s = s + \" ) \";        if (!node.body || node.body.id !== \"(block)\") {          s = s + \"{\";          s = s + translate(node.body, context);          s = s + intro(deep);                    s = s + \"}\";        } else {          s = s + translate(node.body, context);        }                      } else      if (node.id === \"while\") {        var s = \"\";                s = s + intro(deep);                s = s + \"while\";        s = s + \" ( \";                s = s + translate(node.condition, context);        s = s + \" ) \";                if (!node.body || node.body.id !== \"(block)\") {          s = s + \"{\";          s = s + translate(node.body, context);                    s = s + \"}\";        } else {          s = s + translate(node.body, context);        }                      } else      if (node.id === \"do\") {        var s = \"\";                s = s + intro(deep);                s = s + \"do\";        if (!node.body || node.body.id !== \"(block)\") {          s = s + \"{\";          s = s + translate(node.body, context);                    s = s + \"}\";        } else {          s = s + translate(node.body, context);        }        s = s + \"while\";        s = s + \" ( \";                s = s + translate(node.condition, context);        s = s + \" );\\\\n\";                              } else      if (node.id === \"if\") {        var s = node.id;        s = s + \" ( \";              s = s + translate(node.condition, context);        s = s + \" ) \";                s = s + translate(node.yes, context);        if (node.no) {          s = s + \" else \";          s = s + translate(node.no, context);        }      } else      if (node.id === \"switch\") {        var s = \"switch\";        s = s + \" ( \";                s = s + translate(node.condition, context);        if (node.condition.datatype == StringDatatype) s = s + \".toString()\";        s = s + \" ) \";                s = s + translate(node.body, context);      } else      if (node.id === \"case\") {        var s = \"\";        s += \"case \";        if (node.label.datatype == CharDatatype || node.label.datatype == StringDatatype) s = s + '\"';        s = s + node.label.value;        if (node.label.datatype == CharDatatype || node.label.datatype == StringDatatype ) s = s + '\"';        s += \":\";      } else       if (node.id === \"default\") {        var s = \"\";        s += \"default:\";      } else       if (node.id === \"break\") {        var s = \"\";        s += \"break;\";      } else      if (node.id === \"continue\") {        var s = \"\";        s += \"continue;\";      } else      if (node.id === \"return\") {        var s = \"return \";        if (node.right) {          s = s + translate(node.right, context);        }        s = s + \" ; \";      } else      if (node.id === \"(expression)\") {        var s = translate(node.right, context);        s = s + \";\";        } else {        console.log(\"Falta caso para\", node);      }         for ( var i = 0 ; i < deep ; i++ ) s = \"  \" + s;      return s;    } else    if (node.type === \"identifier\") {      if (node.id === \"[\") {        return accesoIndexado(node, context);             } else      if (node.id === \"new\") {        return operadorNew(node);      } else      if (node.id === \"(call)\") {        return call(node, context);      } else      if (node.id === \".\") {        return accesoNombrado(node, context);      } else      if (node.id === \"this\") {        var s = \"this\";        return s;      } else {                var s = \"\";        if (node.member || node.method) {          if (node.static) {            var theclassid = \"__\" + node.scope.context.scope.context.id;            s = s + theclassid + \".prototype.\";          } else {            s = s + \"this.\";                  }        }        /*        if (node.predefined) s = s + \"runtime.\";        else s = s + \"__\";        */        if (!node.predefined) s = s + \"__\";        if (node.id === \"null\") s = s + \"NullObject\";        else s = s + node.id;        if (node.method) s = s + \"__\" + node.version;        return s;      }    } else    if (node.type === \"datatype\") {      var s = \"function \";      s = s + \"__\" + node.id + \"()\";      s = s + \" {\";      s = s + \"\\\\n\";      deep++;      s = s + intro(deep);      s = s + \"__Object.call(this, '__\" + node.id + \"');\\\\n\";      for ( var i = 0 ; i < node.body.length ; i++ ) {        if (node.body[i].member && !node.body[i].static) {          s = s + translate(node.body[i], context);          s = s + \"\\\\n\";        }      }      s = s + \"\\\\n\";      deep--;      s = s + intro(deep);      s = s + \"}\\\\n\";      s = s + intro(deep);      s = s + \"__\" + node.id + \".prototype = Object.create(__Object.prototype);\\\\n\";      s = s + intro(deep);      s = s + \"__\" + node.id + \".prototype.constructor = __\" + node.id + \";\\\\n\\\\n\";      s = s + intro(deep);      for ( var i = 0 ; i < node.body.length ; i++ ) {        if (node.body[i].method || node.body[i].static) {          s = s + translate(node.body[i], context);          s = s + \"\\\\n\";        }      }           return s;    } else    if (node.type === \"variable\" || node.type === \"constant\" || node.type === \"function\") {      var s = \"\";      if (node.datatype instanceof FunctionDatatype) {        if (node.method) {          var theclassid = \"__\" + node.scope.context.id;          s = s + theclassid + \".prototype.\";        } else {          s = s + \"var \";        }        s = s + \"__\";        if (node.id === \"(Constructor)\") {          s = s + \"Constructor\";          context = node.id;        } else {          s = s + node.id;          if (node.method) context = \"(method)\";        }        if (node.method) s = s + \"__\" + node.version;        s = s + \" = function\";        s = s + \"(\";        if (node.datatype.params) {          /*          if (node.method && node.id != \"(Constructor)\") {            s = s + \"__iJava__line\";            if (node.datatype.params.length > 0) s = s + \", \";          }          */          var i = 0;          for ( i = 0 ; i < node.datatype.params.length-1 ; i++ ) {            node.datatype.params[i].parameter = true;            s = s + translate(node.datatype.params[i], context);            s = s + \", \";          }          if (node.datatype.params.length > 0) {            node.datatype.params[i].parameter = true;            s = s + translate(node.datatype.params[i], context);          }        }        s = s + \")\";        if (node.body) {          s = s + translate(node.body, context);        }             } else {        if (node.static) {          var theclassid = \"__\" + node.scope.context.id;          s = s + theclassid + \".prototype.\";        } else        if (node.member) {          s = s + \"this.\";        } else        if (!node.parameter) {          s = s + \"var \";        }        s = s + \"__\" + node.id;        s = s + \" \";        if (!node.parameter) s = s + \" = \";               if (node.initialValue) {          s = s + translate(node.initialValue, context);        } else {          if (!node.parameter) {            s = s + node.datatype.getDefaultValue();          }        }        if (!node.parameter) s = s + \";\";      }      if (!node.parameter && context !== \"for\") s = s + intro(deep);      return s;    } else {      console.log(\"Unknown error 2\", node);    }   };    function get_ndim_array(dims, value) {    if (dims.length == 0) {      return value;    }        return \"Array(\" + dims[0] + \").fill(\" + get_ndim_array(dims.slice(1), value) + \")\";  }    function operadorNew(node, context) {    var s = \"\";    if (node.datatype instanceof ArrayDatatype) {      let dims = [];            for (let i = 0; i < node.args.length; i++) {        dims.push(translate(node.args[i], context));      }            s = get_ndim_array(dims, node.datatype.celltype.getDefaultInitializer());    } else {      s = s + \"(new \";      s = s + \"__\" + node.basetype;      s = s + \"())\";      if (node.defaultConstructor) {        s = s + \".__ObjectConstructor()\";      } else {        s = s + \".__Constructor\";        s = s + \"__\" + node.version;        s = s + \"(\";        var i = 0;        for ( i = 0 ; i < node.args.length-1 ; i++ ) {          s = s + translate(node.args[i], context);          s = s + \", \";        }        if ( node.args.length > 0) s = s + translate(node.args[i], context);        s = s + \")\";      }    }    return s;  }    function call(node, context) {    var s = \"\";    s = s + translate(node.left, context);    s = s + \"(\";    var i = 0;    for ( i = 0 ; i < node.args.length-1 ; i++ ) {      s = s + translate(node.args[i], context);      s = s + \", \";    }    if ( node.args.length > 0) s = s + translate(node.args[i], context);    s = s + \")\";    return s;  }    function accesoNombrado(node, context) {    var s = \"\";    if (node.static) {      s = s + \"__\" + node.left.datatype.id + \".prototype\";      s = s + \".\";      s = s + \"__\" + node.right.id;      if (node.method) s = s + \"__\" + node.version;      if (node.args) {        s = s + \"(\";        var i = 0;                  for ( i = 0 ; i < node.args.length-1 ; i++ ) {          s = s + translate(node.args[i], context);          s = s + \", \";        }        if ( node.args.length > 0) s = s + translate(node.args[i], context);        s = s + \")\";      }    } else {      if (node.left.id === \"this\") {        s = s + \"this.__\" + node.right.id;        if (node.method) {          s = s + \"__\" + node.version;          s = s + \"(\";          var i = 0;          for ( i = 0 ; i < node.args.length-1 ; i++ ) {            s = s + translate(node.args[i], context);            s = s + \", \";          }          if ( node.args.length > 0) s = s + translate(node.args[i], context);          s = s + \")\";        }        return s;      }      if (node.method) {        s = s + translate(node.left, context);        s = s + \".\";        s = s + \"__\" + node.right.id;        s = s + \"__\" + node.version;        s = s + \"(\";        var i = 0;        for ( i = 0 ; i < node.args.length-1 ; i++ ) {          s = s + translate(node.args[i], context);          s = s + \", \";        }        if ( node.args.length > 0) s = s + translate(node.args[i], context);        s = s + \")\";      } else {        s = s + translate(node.left, \"right\");        if (context !== \"left\") {          s = s + \".\";                    if (node.left.datatype instanceof ArrayDatatype) {            s = s + node.right.id;          } else {            s = s + \"__\" + node.right.id;          }        }      }    }    return s;  }     function accesoIndexado(node, context) {    var s = \"\";    s = s + translate(node.left, \"right\");    if (context !== \"left\") {      for (let i = 0; i < node.right.length; i++) {        s = s + \"[\" + translate(node.right[i], context) + \"]\";      }    }    return s;  }};`";
+
+final String g_custom_js = "`window.my_canvas = document.getElementById(\"mycanvas\");window.context = my_canvas.getContext(\"2d\");window.my_canvas.style.imageRendering = \"crisp-edges\";window.context.imageSmoothingEnabled = false;window.context.mozImageSmoothingEnabled = false;window.context.oImageSmoothingEnabled = false;window.context.webkitImageSmoothingEnabled = false;window.context.msImageSmoothingEnabled = false;let mouse_locked = false;let send_lock_delta = function(event) {  window.send_event(\"lock_delta\", [event.movementX, event.movementY]);};document.onpointerlockchange = function() {  if (mouse_locked) {    document.removeEventListener(\"mousemove\", send_lock_delta, false);    mouse_locked = false;        window.send_event(\"lock_off\", []);  } else {    document.addEventListener(\"mousemove\", send_lock_delta, false);    mouse_locked = true;        window.send_event(\"lock_on\", []);  }};`";
+
+// ^^^ g_scripts.ij ^^^
+
+// === js_inject.ij ===
+
+class js_event_t {
+  String name;
+
+  String data_string[];
+  double data_double[];
+
+  js_event_t() {
+    ;
+  };
+};
+
+class js_canvas_t {
+  js_canvas_t() {
+    ;
+  }
+
+  void rect(double x, double y, double width, double height) {
+    ;
+  }
+};
+
+class js_t {
+  js_event_t event_queue[];
+
+  int event_head;
+  int event_tail;
+
+  int main;
+  int on_event;
+
+  js_t() {
+    ;
+  }
+
+  void eval_raw(int code) {
+    ;
+  }
+
+  void eval(String code) {
+    eval_raw(string_to_array(code)[string_to_int("__data")]);
+  }
+
+  void loader() {
+    char dummy[] = {' '};
+    char array[] = (true ? js : js) ? dummy : dummy;
+
+    int new_array[] = string_to_array("hello");
+    int window = (true ? this : this) ? 0 : 0;
+
+    new_array[string_to_int("__data")] = window;
+    String this_str = (true ? new_array : new_array) ? "" : "";
+
+    array[string_to_int("__eval_raw__0")] = this_str.charAt(string_to_int("eval"));
+
+    this.main = (true ? main_js : main_js) ? 0 : 0;
+    this.on_event = (true ? on_event_js : on_event_js) ? 0 : 0;
+
+    js.eval(
+      "if (window.js_inject_successful) {" +
+      "  window.send_event = function(name, data) {" +
+      "    window.__on_event({" +
+      "      __name: new __String(name)," +
+      "      __data_string: data.map(function(x) {return new __String(x);})," +
+      "      __data_double: data," +
+      "    });" +
+      "  };" +
+      "  " +
+      "  window.js_inject_successful = false;" +
+      "  window.__main();" +
+      "} else {" +
+      "  let ijava2javascript_script = document.createElement(\"script\");" +
+      "  ijava2javascript_script.innerHTML = " + g_ijava2javascript_js + ";" +
+      "  " +
+      "  let custom_script = document.createElement(\"script\");" +
+      "  custom_script.innerHTML = " + g_custom_js + ";" +
+      "  " +
+      "  document.body.append(ijava2javascript_script);" +
+      "  document.body.append(custom_script);" +
+      "  " +
+      "  setTimeout(function() {" +
+      "    document.getElementById('buttonRun').click();" +
+      "    window.js_inject_successful = true;" +
+      "  }, 1000);" +
+      "  " +
+      "  document.getElementById('buttonRun').click();" +
+      "}"
+    );
+
+    char context = this_str.charAt(string_to_int("context"));
+    canvas = (true ? context : context) ? canvas : canvas;
+
+    array = (true ? canvas : canvas) ? dummy : dummy;
+    array[string_to_int("__rect__0")] = array[string_to_int("fillRect")];
+  }
+
+  void lock_mouse() {
+    js.eval("window.my_canvas.requestPointerLock({unadjustedMovement: true});");
+  }
+
+  void unlock_mouse() {
+    js.eval("document.exitPointerLock();");
+  }
+};
+
+js_canvas_t canvas = new js_canvas_t();
+js_t js = new js_t();
+
+int[] int_to_array(int x) {
+  int array[] = {0};
+  return (true ? x : x) ? array : array;
+}
+
+int[] string_to_array(String x) {
+  int array[] = {0};
+  return (true ? x : x) ? array : array;
+}
+
+int string_to_int(String x) {
+  return (true ? x : x) ? 0 : 0;
+}
+
+double string_to_double(String x) {
+  return (true ? x : x) ? 0.0 : 0.0;
+}
+
+void main() {
+  int dummy[] = {0};
+  int array[] = (true ? js : js) ? dummy : dummy;
+
+  int func = array[string_to_int("__loader__0")];
+  animate((true ? func : func) ? main : main, 100);
+}
+
+// ^^^ js_inject.ij ^^^
+
+// === vector.ij ===
+
+class vector_t {
+  double x;
+  double y;
+  double z;
+
+  vector_t(double x, double y, double z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+
+  vector_t add(vector_t vector) {
+    return new vector_t(this.x + vector.x, this.y + vector.y, this.z + vector.z);
+  }
+
+  vector_t subtract(vector_t vector) {
+    return new vector_t(this.x - vector.x, this.y - vector.y, this.z - vector.z);
+  }
+
+  vector_t multiply(double scalar) {
+    return new vector_t(this.x * scalar, this.y * scalar, this.z * scalar);
+  }
+
+  vector_t divide(double scalar) {
+    return new vector_t(this.x / scalar, this.y / scalar, this.z / scalar);
+  }
+
+  vector_t normal() {
+    double length = sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+    return new vector_t(this.x / length, this.y / length, this.z / length);
+  }
+
+  double length() {
+    return sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+  }
+
+  double dot(vector_t vector) {
+    return x * vector.x + y * vector.y + z * vector.z;
+  }
+
+  vector_t cross(vector_t vector) {
+    return new vector_t(this.y * vector.z - this.z * vector.y, this.z * vector.x - this.x * vector.z, this.x * vector.y - this.y * vector.x);
+  }
+
+  vector_t rotate_x(double angle) {
+    return new vector_t(this.x, this.y * cos(angle) - this.z * sin(angle), this.y * sin(angle) + this.z * cos(angle));
+  }
+
+  vector_t rotate_y(double angle) {
+    return new vector_t(this.x * cos(angle) - this.z * sin(angle), this.y, this.x * sin(angle) + this.z * cos(angle));
+  }
+
+  vector_t plane(vector_t line_start, vector_t line_end) {
+    double a = -this.dot(line_start);
+    double b = this.dot(line_end.subtract(line_start));
+
+    if (b == 0.0) return null;
+    if (a / b < 0.0 || a / b > 1.0) return null;
+
+    return line_start.add(line_end.subtract(line_start).multiply(a / b));
+  }
+};
+
+// ^^^ vector.ij ^^^
+
+// === player.ij ===
+
+class player_t {
+  vector_t point;
+  double angle;
+
+  int index;
+
+  boolean buttons[];
+
+  player_t(vector_t point, int index) {
+    this.point = point;
+    this.angle = 0.0;
+
+    this.index = index;
+  }
+};
+
+// ^^^ player.ij ^^^
+
+// === render.ij ===
+
+// For whoever is reading this:
+// 
+// This is purely a tribute to Quake's software renderer. It uses the
+// exact same techniques for triangle rasterizing and span rendering.
+// Here is a video explaining them: https://youtu.be/zdXsHWHxeBY?t=222
+
+class r_span_t {
+  boolean active;
+
+  int x0;
+  double z0;
+
+  int x1;
+  double z1;
+
+  double red;
+  double green;
+  double blue;
+
+  r_span_t(int x0, double z0, int x1, double z1, double red, double green, double blue) {
+    this.active = false;
+
+    this.x0 = x0;
+    this.z0 = z0;
+
+    this.x1 = x1;
+    this.z1 = z1;
+
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+  }
+
+  double get_depth(int x) {
+    if (this.x0 == this.x1) {
+      return (this.z0 + this.z1) * 0.5;
+    }
+
+    double lerp = (x - this.x0 + 0.0) / (this.x1 - this.x0);
+
+    double i0 = 1.0 / this.z0;
+    double i1 = 1.0 / this.z1;
+
+    return 1.0 / (i0 + (i1 - i0) * lerp);
+  }
+};
+
+class r_edge_t {
+  int x;
+  int index;
+
+  r_edge_t(int x, int index) {
+    this.x = x;
+    this.index = index;
+  }
+};
+
+class render_t {
+  double x;
+  double y;
+
+  double scale;
+
+  r_span_t spans[];
+  int span_count;
+
+  r_edge_t edges[];
+  int edge_count[];
+
+  int line_count;
+
+  int actives[];
+  int active_count;
+
+  render_t(double x, double y, double scale, int line_count) {
+    this.x = x;
+    this.y = y;
+
+    this.scale = scale;
+
+    this.spans = new r_span_t[line_count * 256];
+
+    this.edges = new r_edge_t[line_count * 256 * 2];
+    this.edge_count = new int[line_count];
+
+    this.line_count = line_count;
+
+    this.actives = new int[256];
+    this.active_count = 0;
+  }
+
+  void e_sift_up(int y, int i) {
+    if (i == 0) {
+      return;
+    }
+
+    int j = (i - 1) / 2;
+
+    final r_edge_t edge_i = this.edges[i + y * 256 * 2];
+    final r_edge_t edge_j = this.edges[j + y * 256 * 2];
+
+    if (edge_j.x <= edge_i.x) {
+      return;
+    }
+
+    this.edges[i + y * 256 * 2] = edge_j;
+    this.edges[j + y * 256 * 2] = edge_i;
+
+    this.e_sift_up(y, j);
+  }
+
+  void e_sift_down(int y, int i) {
+    int l = (i * 2) + 1;
+    int r = (i * 2) + 2;
+
+    final r_edge_t edge_i = this.edges[i + y * 256 * 2];
+
+    r_edge_t edge_j = edge_i;
+    int j = i;
+
+    if (l < this.edge_count[y] && this.edges[l + y * 256 * 2].x < edge_j.x) {
+      edge_j = this.edges[l + y * 256 * 2];
+      j = l;
+    }
+
+    if (r < this.edge_count[y] && this.edges[r + y * 256 * 2].x < edge_j.x) {
+      edge_j = this.edges[r + y * 256 * 2];
+      j = r;
+    }
+
+    if (i == j) {
+      return;
+    }
+
+    this.edges[i + y * 256 * 2] = edge_j;
+    this.edges[j + y * 256 * 2] = edge_i;
+
+    this.e_sift_down(y, j);
+  }
+
+  void a_sift_up(int x, int i) {
+    if (i == 0) {
+      return;
+    }
+
+    int j = (i - 1) / 2;
+
+    final int index_i = this.actives[i];
+    final int index_j = this.actives[j];
+
+    if (this.spans[index_j].get_depth(x) <= this.spans[index_i].get_depth(x)) {
+      return;
+    }
+
+    this.actives[i] = index_j;
+    this.actives[j] = index_i;
+
+    this.a_sift_up(x, j);
+  }
+
+  void a_sift_down(int x, int i) {
+    int l = (i * 2) + 1;
+    int r = (i * 2) + 2;
+
+    final int index_i = this.actives[i];
+
+    int index_j = index_i;
+    int j = i;
+
+    if (l < this.active_count && this.spans[this.actives[l]].get_depth(x) < this.spans[index_j].get_depth(x)) {
+      index_j = this.actives[l];
+      j = l;
+    }
+
+    if (r < this.active_count && this.spans[this.actives[r]].get_depth(x) < this.spans[index_j].get_depth(x)) {
+      index_j = this.actives[r];
+      j = r;
+    }
+
+    if (i == j) {
+      return;
+    }
+
+    this.actives[i] = index_j;
+    this.actives[j] = index_i;
+
+    this.a_sift_down(x, j);
+  }
+
+  void init_frame() {
+    this.span_count = 0;
+
+    for (int i = 0; i < this.line_count; i++) {
+      this.edge_count[i] = 0;
+    }
+  }
+
+  void push_span(int y, int x0, double z0, int x1, double z1, double red, double green, double blue) {
+    if (y < 0 || y >= this.line_count) {
+      return;
+    }
+
+    int index = this.span_count;
+
+    this.spans[index] = new r_span_t(x0, z0, x1, z1, red, green, blue);
+    this.span_count++;
+
+    this.edges[this.edge_count[y] + y * 256 * 2] = new r_edge_t(x0, index);
+    this.e_sift_up(y, this.edge_count[y]);
+    this.edge_count[y]++;
+
+    this.edges[this.edge_count[y] + y * 256 * 2] = new r_edge_t(x1, index);
+    this.e_sift_up(y, this.edge_count[y]);
+    this.edge_count[y]++;
+  }
+
+  void push_top(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+    double slope_x0 = (x2 - x0 + 0.0) / (y2 - y0);
+    double slope_x1 = (x2 - x1 + 0.0) / (y2 - y1);
+
+    double slope_z0 = (z2 - z0) / (y2 - y0);
+    double slope_z1 = (z2 - z1) / (y2 - y1);
+
+    double curr_x0 = x2;
+    double curr_x1 = x2;
+
+    double curr_z0 = z2;
+    double curr_z1 = z2;
+
+    if (x0 > x1) {
+      this.push_top(x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
+      return;
+    }
+
+    for (int scan_y = y2; scan_y >= y0; scan_y--) {
+      this.push_span(scan_y, floor(curr_x0), curr_z0, floor(curr_x1), curr_z1, red, green, blue);
+
+      curr_x0 -= slope_x0;
+      curr_x1 -= slope_x1;
+
+      curr_z0 -= slope_z0;
+      curr_z1 -= slope_z1;
+    }
+  }
+
+  void push_bottom(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+    double slope_x0 = (x1 - x0 + 0.0) / (y1 - y0);
+    double slope_x1 = (x2 - x0 + 0.0) / (y2 - y0);
+
+    double slope_z0 = (z1 - z0) / (y1 - y0);
+    double slope_z1 = (z2 - z0) / (y2 - y0);
+
+    double curr_x0 = x0;
+    double curr_x1 = x0;
+
+    double curr_z0 = z0;
+    double curr_z1 = z0;
+
+    if (x1 > x2) {
+      this.push_bottom(x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
+      return;
+    }
+
+    for (int scan_y = y0; scan_y <= y1; scan_y++) {
+      this.push_span(scan_y, floor(curr_x0), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+
+      curr_x0 += slope_x0;
+      curr_x1 += slope_x1;
+
+      curr_z0 += slope_z0;
+      curr_z1 += slope_z1;
+    }
+  }
+
+  void push_triangle(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+    if (y0 > y1) {
+      int tx = x0;
+      int ty = y0;
+      double tz = z0;
+
+      x0 = x1;
+      y0 = y1;
+      z0 = z1;
+
+      x1 = tx;
+      y1 = ty;
+      z1 = tz;
+    }
+
+    if (y1 > y2) {
+      int tx = x1;
+      int ty = y1;
+      double tz = z1;
+
+      x1 = x2;
+      y1 = y2;
+      z1 = z2;
+
+      x2 = tx;
+      y2 = ty;
+      z2 = tz;
+    }
+
+    if (y0 > y1) {
+      int tx = x0;
+      int ty = y0;
+      double tz = z0;
+
+      x0 = x1;
+      y0 = y1;
+      z0 = z1;
+
+      x1 = tx;
+      y1 = ty;
+      z1 = tz;
+    }
+
+    if (y1 == y2) {
+      this.push_bottom(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+    } else if (y0 == y1) {
+      this.push_top(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+    } else {
+      double delta_1 = y1 - y0;
+      double delta_2 = y2 - y0;
+
+      int x3 = ceil((x0 + (delta_1 / delta_2) * (x2 - x0)));
+      double z3 = (z0 + (delta_1 / delta_2) * (z2 - z0));
+
+      this.push_bottom(x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
+      this.push_top(x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
+    }
+  }
+
+  void draw_line(int y) {
+    this.active_count = 0;
+    int x = 0;
+
+    while (this.edge_count[y] > 0) {
+      r_edge_t edge = this.edges[y * 256 * 2];
+
+      while (this.edge_count[y] > 0 && x >= edge.x) {
+        this.edge_count[y]--;
+
+        this.edges[y * 256 * 2] = this.edges[this.edge_count[y] + y * 256 * 2];
+        this.e_sift_down(y, 0);
+
+        if (this.spans[edge.index].active) {
+          this.spans[edge.index].active = false;
+        } else {
+          this.actives[this.active_count] = edge.index;
+          this.a_sift_up(x, this.active_count);
+          this.active_count++;
+
+          this.spans[edge.index].active = true;
+        }
+
+        edge = this.edges[y * 256 * 2];
+      }
+
+      int index = -1;
+
+      while (this.active_count > 0) {
+        if (this.spans[this.actives[0]].active) {
+          index = this.actives[0];
+          break;
+        }
+
+        this.active_count--;
+
+        this.actives[0] = this.actives[this.active_count];
+        this.a_sift_down(x, 0);
+      }
+
+      if (index >= 0) {
+        final r_span_t span = this.spans[index];
+
+        int sx = (int)(x * this.scale + this.x);
+        int sy = (int)(y * this.scale + this.y);
+
+        int ex = (int)(edge.x * this.scale + this.x);
+        int ey = (int)((y + 1) * this.scale + this.y);
+
+        fill(span.red, span.green, span.blue);
+        canvas.rect(sx, sy, ex - sx, ey - sy);
+      }
+
+      x = edge.x;
+    }
+  }
+
+  void draw_frame() {
+    for (int i = 0; i < this.line_count; i++) {
+      this.draw_line(i);
+    }
+  }
+};
+
+// ^^^ render.ij ^^^
+
+// === object.ij ===
+
+class object_t {
+  boolean free;
+  vector_t point;
+
+  double angle_x;
+  double angle_y;
+
+  face_t faces[];
+  double radius;
+
+  object_t() {
+    this.free = true;
+  }
+
+  object_t(vector_t point, double angle_x, double angle_y, face_t faces[]) {
+    this.free = false;
+    this.point = point;
+
+    this.angle_x = angle_x;
+    this.angle_y = angle_y;
+
+    this.faces = faces;
+    this.radius = 0.0;
+
+    for (int i = 0; i < faces.length; i++) {
+      double radius_a = faces[i].a.length();
+      double radius_b = faces[i].b.length();
+      double radius_c = faces[i].c.length();
+
+      if (radius_a > this.radius) {
+        this.radius = radius_a;
+      }
+
+      if (radius_b > this.radius) {
+        this.radius = radius_b;
+      }
+
+      if (radius_c > this.radius) {
+        this.radius = radius_c;
+      }
+    }
+  }
+};
+
+// ^^^ object.ij ^^^
+
+// === face.ij ===
+
+class face_t {
+  double red;
+  double green;
+  double blue;
+
+  vector_t a;
+  vector_t b;
+  vector_t c;
+
+  vector_t normal;
+
+  face_t(double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+
+    this.a = a;
+    this.b = b;
+    this.c = c;
+
+    this.normal = normal;
+  }
+};
+
+// ^^^ face.ij ^^^
+
+// === scene.ij ===
+
+class scene_t {
+  // Screen-related properties:
+
+  double width;
+  double height;
+
+  double center_x;
+  double center_y;
+
+  double half_length;
+
+  // Persistent storage:
+
+  object_t objects[];
+  double radius;
+
+  vector_t sunlight;
+
+  // Temporary storage:
+
+  face_t faces[];
+  int face_count;
+
+  scene_t(double radius, vector_t sunlight) {
+    this.objects = new object_t[64];
+    this.radius = radius;
+
+    this.sunlight = sunlight.normal();
+
+    for (int i = 0; i < 64; i++) {
+      this.objects[i] = new object_t();
+    }
+
+    this.faces = new face_t[1024];
+    this.face_count = 0;
+  }
+
+  int push(object_t object) {
+    for (int i = 0; i < 64; i++) {
+      if (this.objects[i].free) {
+        this.objects[i] = object;
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  void free(int index) {
+    this.objects[index].free = true;
+  }
+
+  void init_viewport(double start_x, double start_y, double end_x, double end_y) {
+    this.width = end_x - start_x;
+    this.height = end_y - start_y;
+
+    this.center_x = start_x + this.width * 0.5;
+    this.center_y = start_y + this.height * 0.5;
+
+    if (this.width > this.height) {
+      this.half_length = this.width * 0.5;
+    } else {
+      this.half_length = this.height * 0.5;
+    }
+  }
+
+  void load_single(face_t face) {
+    face_t faces[] = {face};
+    int face_count = 1;
+
+    final vector_t normals[] = {
+      new vector_t(-2.0, 0.0, this.width / this.half_length).normal(),
+      new vector_t(2.0, 0.0, this.width / this.half_length).normal(),
+      new vector_t(0.0, 2.0, this.height / this.half_length).normal(),
+      new vector_t(0.0, -2.0, this.height / this.half_length).normal(),
+    };
+
+    for (int i = 0; i < normals.length; i++) {
+      face_t next_faces[] = new face_t[face_count * 2];
+      int next_face_count = 0;
+
+      final vector_t normal = normals[i];
+
+      for (int j = 0; j < face_count; j++) {
+        final face_t next_face = faces[j];
+
+        double dist_a = normal.dot(next_face.a);
+        double dist_b = normal.dot(next_face.b);
+        double dist_c = normal.dot(next_face.c);
+
+        if (dist_a >= 0.0 && dist_b >= 0.0 && dist_c >= 0.0) {
+          next_faces[next_face_count] = next_face;
+          next_face_count++;
+        } else if (dist_a >= 0.0 && dist_b >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+        } else if (dist_b >= 0.0 && dist_c >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+        } else if (dist_c >= 0.0 && dist_a >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+        } else if (dist_a >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
+          next_face_count++;
+        } else if (dist_b >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
+          next_face_count++;
+        } else if (dist_c >= 0.0) {
+          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
+          next_face_count++;
+        }
+      }
+
+      faces = next_faces;
+      face_count = next_face_count;
+    }
+
+    for (int i = 0; i < face_count; i++) {
+      this.faces[this.face_count] = faces[i];
+      this.face_count++;
+    }
+  }
+
+  void load_faces(vector_t camera_point, double angle_x, double angle_y) {
+    this.face_count = 0;
+
+    for (int i = 0; i < 64; i++) {
+      final object_t object = this.objects[i];
+
+      if (object.free) {
+        continue;
+      }
+
+      vector_t point = object.point.subtract(camera_point);
+
+      if (point.length() > this.radius + object.radius) {
+        continue;
+      }
+
+      for (int j = 0; j < object.faces.length; j++) {
+        final face_t face = object.faces[j];
+
+        vector_t normal = face.normal.rotate_y(object.angle_y).rotate_y(object.angle_x);
+        // vector_t center = face.a.add(face.b).add(face.c).divide(3.0);
+
+        /*
+        double view = center.rotate_y(object.angle_y).rotate_y(object.angle_x).add(point).dot(normal);
+        
+        if (view > 0.0) {
+          continue;
+        }
+        */
+
+        double shade = (abs(normal.dot(this.sunlight)) + 2.0) / 3.0;
+
+        load_single(new face_t(
+          face.red * shade,
+          face.green * shade,
+          face.blue * shade,
+
+          normal.rotate_y(angle_y).rotate_x(angle_x),
+
+          face.a.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+          face.b.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+          face.c.rotate_y(object.angle_y).rotate_x(object.angle_x).add(point).rotate_y(angle_y).rotate_x(angle_x),
+        ));
+      }
+    }
+  }
+
+  void draw_faces(render_t render) {
+    for (int i = 0; i < this.face_count; i++) {
+      final face_t face = this.faces[i];
+
+      double x0 = (face.a.x / face.a.z) * this.half_length + this.center_x;
+      double y0 = this.center_y - (face.a.y / face.a.z) * this.half_length;
+      double z0 = face.a.z;
+
+      double x1 = (face.b.x / face.b.z) * this.half_length + this.center_x;
+      double y1 = this.center_y - (face.b.y / face.b.z) * this.half_length;
+      double z1 = face.b.z;
+
+      double x2 = (face.c.x / face.c.z) * this.half_length + this.center_x;
+      double y2 = this.center_y - (face.c.y / face.c.z) * this.half_length;
+      double z2 = face.c.z;
+
+      render.push_triangle(floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
+    }
+  }
+};
+
+// ^^^ scene.ij ^^^
+
+// === g_models.ij ===
+
+final face_t g_Cone[] = {
+  new face_t(0.0, 0.0, 255.0, new vector_t(0.25, 0.8660253882408142, 0.4330126941204071), new vector_t(0.0, -0.5, 2.0), new vector_t(0.0, 0.5, 0.0), new vector_t(1.7320507764816284, -0.5, 1.0)),
+  new face_t(255.0, 255.0, 255.0, new vector_t(0.5, 0.8660253882408142, 0.0), new vector_t(1.7320507764816284, -0.5, 1.0), new vector_t(0.0, 0.5, 0.0), new vector_t(1.7320507764816284, -0.5, -1.0)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.25, 0.8660253882408142, -0.4330126941204071), new vector_t(1.7320507764816284, -0.5, -1.0), new vector_t(0.0, 0.5, 0.0), new vector_t(0.0, -0.5, -2.0)),
+  new face_t(0.0, 0.0, 255.0, new vector_t(-0.25, 0.8660253882408142, -0.4330126941204071), new vector_t(0.0, -0.5, -2.0), new vector_t(0.0, 0.5, 0.0), new vector_t(-1.7320507764816284, -0.5, -1.0)),
+  new face_t(255.0, 255.0, 255.0, new vector_t(-0.5, 0.8660253882408142, 0.0), new vector_t(-1.7320507764816284, -0.5, -1.0), new vector_t(0.0, 0.5, 0.0), new vector_t(-1.7320507764816284, -0.5, 1.0)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(-0.25, 0.8660253882408142, 0.4330126941204071), new vector_t(-1.7320507764816284, -0.5, 1.0), new vector_t(0.0, 0.5, 0.0), new vector_t(0.0, -0.5, 2.0)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(0.866025447845459, 0.0, 0.5), new vector_t(0.0, 0.5, 0.10000000149011612), new vector_t(0.08660253882408142, -2.5, -0.05000000074505806), new vector_t(0.0, -2.5, 0.10000000149011612)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(0.0, 0.0, -1.0), new vector_t(0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(-0.08660253882408142, -2.5, -0.05000000074505806), new vector_t(0.08660253882408142, -2.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(0.0, 0.5, 0.10000000149011612), new vector_t(-0.08660253882408142, 0.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(-0.866025447845459, 0.0, 0.5), new vector_t(-0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(0.0, -2.5, 0.10000000149011612), new vector_t(-0.08660253882408142, -2.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(0.0, -1.0, 0.0), new vector_t(0.0, -2.5, 0.10000000149011612), new vector_t(0.08660253882408142, -2.5, -0.05000000074505806), new vector_t(-0.08660253882408142, -2.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(0.866025447845459, -0.0, 0.5), new vector_t(0.0, 0.5, 0.10000000149011612), new vector_t(0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(0.08660253882408142, -2.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(0.0, 0.0, -1.0), new vector_t(0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(-0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(-0.08660253882408142, -2.5, -0.05000000074505806)),
+  new face_t(170.08499890565872, 84.91500109434128, 0.0, new vector_t(-0.866025447845459, 0.0, 0.5), new vector_t(-0.08660253882408142, 0.5, -0.05000000074505806), new vector_t(0.0, 0.5, 0.10000000149011612), new vector_t(0.0, -2.5, 0.10000000149011612)),
+};
+
+final face_t g_red_kart[] = {
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.0, -0.0, 1.0), new vector_t(-0.5, 0.0, -0.5), new vector_t(0.5, -0.5, -0.5), new vector_t(-0.5, -0.5, -0.5)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.9701425433158875, 0.0, -0.24253563582897186), new vector_t(0.5, -0.5, -0.5), new vector_t(0.5, 0.0, -0.5), new vector_t(0.0, -0.5, -2.5)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(-0.9701425433158875, 0.0, -0.24253563582897186), new vector_t(-0.5, 0.0, -0.5), new vector_t(-0.5, -0.5, -0.5), new vector_t(0.0, -0.5, -2.5)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 0.0, 0.0), new vector_t(0.5, 0.0, -0.5), new vector_t(0.0, -0.5, -2.5), new vector_t(0.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.9701425433158875, 0.0, -0.24253563582897186), new vector_t(1.5, -0.5, -0.5), new vector_t(1.0, -1.0, -2.5), new vector_t(1.5, -1.0, -0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, 0.0, 0.0), new vector_t(-1.5, -0.5, 0.5), new vector_t(-1.5, -1.0, -0.5), new vector_t(-1.5, -0.5, -0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, 0.0, 0.0), new vector_t(1.5, -0.5, -0.5), new vector_t(1.5, -1.0, 0.5), new vector_t(1.5, -0.5, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.9701425433158875, 0.0, -0.24253563582897186), new vector_t(-1.5, -1.0, -0.5), new vector_t(-1.0, -0.5, -2.5), new vector_t(-1.5, -0.5, -0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, 0.0, -1.0), new vector_t(0.0, -0.5, -2.5), new vector_t(0.3333333134651184, -1.0, -2.5), new vector_t(1.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, 0.0, 0.0), new vector_t(0.5, -0.5, -0.5), new vector_t(0.5, -0.5, 0.5), new vector_t(0.5, -1.0, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, -0.0, 0.0), new vector_t(-0.5, -0.5, 0.5), new vector_t(-0.5, -0.5, -0.5), new vector_t(-0.5, -1.0, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 0.8944271802902222, 0.4472135901451111), new vector_t(0.5, -0.5, -0.5), new vector_t(-0.5, -1.0, 0.5), new vector_t(-0.5, -0.5, -0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.5, -1.0, 0.5), new vector_t(-0.5, -1.0, 1.0), new vector_t(-0.5, -1.0, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.4472135901451111, 0.0, 0.8944271802902222), new vector_t(-0.5, -0.5, 1.0), new vector_t(-1.5, -1.0, 0.5), new vector_t(-1.5, -0.5, 0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(0.5, -0.5, 0.5), new vector_t(0.5, -0.5, -0.5), new vector_t(1.5, -0.5, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.4472135901451111, 0.0, 0.8944271802902222), new vector_t(1.5, -1.0, 0.5), new vector_t(0.5, -0.5, 1.0), new vector_t(1.5, -0.5, 0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.5, -0.5, 1.0), new vector_t(-0.5, -0.5, 2.0), new vector_t(-0.5, -0.5, 1.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, 0.0, -0.0), new vector_t(0.5, -1.0, 2.0), new vector_t(0.5, -0.5, 2.0), new vector_t(0.5, -0.5, 1.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(-0.5, -0.5, 0.5), new vector_t(-0.5, -0.5, 1.0), new vector_t(-1.5, -0.5, 0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 0.8320503234863281, 0.5547001957893372), new vector_t(0.5, -1.0, 2.75), new vector_t(-0.5, -0.5, 2.0), new vector_t(0.5, -0.5, 2.0)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.5, -1.0, 2.0), new vector_t(2.5, -1.0, 2.75), new vector_t(0.5, -1.0, 2.75)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 1.0, 0.0), new vector_t(-2.5, -1.0, 2.75), new vector_t(-0.5, -1.0, 2.0), new vector_t(-0.5, -1.0, 2.75)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(-0.3333333134651184, 0.0, -3.0), new vector_t(-2.5, 0.0, -3.700000047683716), new vector_t(-0.3333333134651184, 0.0, -3.700000047683716)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.5547002553939819, -0.8320503234863281, 0.0), new vector_t(-2.5, 0.0, -3.0), new vector_t(-1.0, -1.0, -2.5), new vector_t(-2.5, 0.0, -3.700000047683716)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.5547002553939819, -0.8320503234863281, 0.0), new vector_t(2.5, 0.0, -3.0), new vector_t(2.5, 0.0, -3.700000047683716), new vector_t(1.0, -1.0, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.3162277638912201, 0.0, 0.9486832618713379), new vector_t(1.0, -0.5, -2.5), new vector_t(2.5, 0.0, -3.0), new vector_t(1.0, -1.0, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.3162277638912201, 0.0, 0.9486832618713379), new vector_t(-1.0, -0.5, -2.5), new vector_t(-1.0, -1.0, -2.5), new vector_t(-2.5, 0.0, -3.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-1.0, 0.0, 0.0), new vector_t(-2.5, -1.0, 2.75), new vector_t(-2.5, -1.0, 2.0), new vector_t(-2.5, -0.5, 2.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(1.0, 0.0, -0.0), new vector_t(2.5, -1.0, 2.75), new vector_t(2.5, -0.5, 2.0), new vector_t(2.5, -1.0, 2.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, 0.0, 0.0), new vector_t(-0.5, -0.5, 2.0), new vector_t(-0.5, -1.0, 2.0), new vector_t(-0.5, -1.0, 1.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.0, -0.0, 1.0), new vector_t(-0.5, 0.0, -0.5), new vector_t(0.5, 0.0, -0.5), new vector_t(0.5, -0.5, -0.5)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 0.9701425433158875, -0.24253563582897186), new vector_t(0.5, 0.0, -0.5), new vector_t(-0.5, 0.0, -0.5), new vector_t(0.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.9701425433158875, 0.0, -0.24253563582897186), new vector_t(1.5, -0.5, -0.5), new vector_t(1.0, -0.5, -2.5), new vector_t(1.0, -1.0, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, 0.0, 0.0), new vector_t(-1.5, -0.5, 0.5), new vector_t(-1.5, -1.0, 0.5), new vector_t(-1.5, -1.0, -0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, -0.0, 0.0), new vector_t(1.5, -0.5, -0.5), new vector_t(1.5, -1.0, -0.5), new vector_t(1.5, -1.0, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.9701425433158875, -0.0, -0.24253563582897186), new vector_t(-1.5, -1.0, -0.5), new vector_t(-1.0, -1.0, -2.5), new vector_t(-1.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 0.0, -1.0), new vector_t(0.0, -0.5, -2.5), new vector_t(-1.0, -0.5, -2.5), new vector_t(-0.3333333134651184, -1.0, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 0.0, -1.0), new vector_t(-1.0, -0.5, -2.5), new vector_t(-1.0, -1.0, -2.5), new vector_t(-0.3333333134651184, -1.0, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, -0.0, -1.0), new vector_t(-0.3333333134651184, -1.0, -2.5), new vector_t(0.3333333134651184, -1.0, -2.5), new vector_t(0.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, -0.0, -1.0), new vector_t(0.3333333134651184, -1.0, -2.5), new vector_t(1.0, -1.0, -2.5), new vector_t(1.0, -0.5, -2.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, 0.8944271802902222, 0.4472135901451111), new vector_t(0.5, -0.5, -0.5), new vector_t(0.5, -1.0, 0.5), new vector_t(-0.5, -1.0, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.5, -1.0, 0.5), new vector_t(0.5, -1.0, 1.0), new vector_t(-0.5, -1.0, 1.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-0.4472135901451111, 0.0, 0.8944271802902222), new vector_t(-0.5, -0.5, 1.0), new vector_t(-0.5, -1.0, 1.0), new vector_t(-1.5, -1.0, 0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(0.5, -0.5, -0.5), new vector_t(0.0, -0.5, -2.5), new vector_t(1.0, -0.5, -2.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(1.0, -0.5, -2.5), new vector_t(1.5, -0.5, -0.5), new vector_t(0.5, -0.5, -0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(1.5, -0.5, -0.5), new vector_t(1.5, -0.5, 0.5), new vector_t(0.5, -0.5, -0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(1.5, -0.5, 0.5), new vector_t(0.5, -0.5, 1.0), new vector_t(0.5, -0.5, 0.5)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(0.4472135901451111, 0.0, 0.8944271802902222), new vector_t(1.5, -1.0, 0.5), new vector_t(0.5, -1.0, 1.0), new vector_t(0.5, -0.5, 1.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, 0.0), new vector_t(-0.5, -0.5, 0.5), new vector_t(0.5, -0.5, 0.5), new vector_t(0.5, -0.5, 1.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(0.5, -0.5, 1.0), new vector_t(0.5, -0.5, 2.0), new vector_t(-0.5, -0.5, 2.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(-0.5, -0.5, 1.0), new vector_t(-0.5, -0.5, 0.5), new vector_t(0.5, -0.5, 1.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, -0.0, 0.0), new vector_t(0.5, -0.5, 1.0), new vector_t(0.5, -1.0, 1.0), new vector_t(0.5, -1.0, 2.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(1.0, 0.0, 0.0), new vector_t(0.5, -1.0, 2.0), new vector_t(0.5, -1.0, 2.75), new vector_t(0.5, -0.5, 2.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(-1.5, -0.5, 0.5), new vector_t(-1.5, -0.5, -0.5), new vector_t(-0.5, -0.5, 0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, 0.0), new vector_t(-1.5, -0.5, -0.5), new vector_t(-1.0, -0.5, -2.5), new vector_t(-0.5, -0.5, -0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(-0.5, -0.5, 0.5), new vector_t(-1.5, -0.5, -0.5), new vector_t(-0.5, -0.5, -0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, 0.0), new vector_t(-1.0, -0.5, -2.5), new vector_t(0.0, -0.5, -2.5), new vector_t(-0.5, -0.5, -0.5)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 0.8320503234863281, 0.5547001957893372), new vector_t(0.5, -1.0, 2.75), new vector_t(-0.5, -1.0, 2.75), new vector_t(-0.5, -0.5, 2.0)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 1.0, 0.0), new vector_t(0.5, -1.0, 2.0), new vector_t(2.5, -1.0, 2.0), new vector_t(2.5, -1.0, 2.75)),
+  new face_t(255.0, 85.0000025331974, 85.0000025331974, new vector_t(0.0, 1.0, -0.0), new vector_t(-2.5, -1.0, 2.75), new vector_t(-2.5, -1.0, 2.0), new vector_t(-0.5, -1.0, 2.0)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(2.5, 0.0, -3.0), new vector_t(0.3333333134651184, 0.0, -3.0), new vector_t(2.5, 0.0, -3.700000047683716)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, -0.0), new vector_t(0.3333333134651184, 0.0, -3.0), new vector_t(-0.3333333134651184, 0.0, -3.0), new vector_t(0.3333333134651184, 0.0, -3.700000047683716)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(-0.0, 1.0, 0.0), new vector_t(2.5, 0.0, -3.700000047683716), new vector_t(0.3333333134651184, 0.0, -3.0), new vector_t(0.3333333134651184, 0.0, -3.700000047683716)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, 0.0), new vector_t(-0.3333333134651184, 0.0, -3.0), new vector_t(-2.5, 0.0, -3.0), new vector_t(-2.5, 0.0, -3.700000047683716)),
+  new face_t(170.0000050663948, 0.0, 0.0, new vector_t(0.0, 1.0, 0.0), new vector_t(-0.3333333134651184, 0.0, -3.700000047683716), new vector_t(0.3333333134651184, 0.0, -3.700000047683716), new vector_t(-0.3333333134651184, 0.0, -3.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, -0.0, -0.0), new vector_t(-0.5, -1.0, 1.0), new vector_t(-0.5, -0.5, 1.0), new vector_t(-0.5, -0.5, 2.0)),
+  new face_t(85.0000025331974, 85.0000025331974, 85.0000025331974, new vector_t(-1.0, 0.0, 0.0), new vector_t(-0.5, -0.5, 2.0), new vector_t(-0.5, -1.0, 2.75), new vector_t(-0.5, -1.0, 2.0)),
+};
+
+// ^^^ g_models.ij ^^^
+
+render_t render;
+scene_t scene;
+
+player_t player;
+
+void main_js() {
+  render = new render_t(0.0, 0.0, 1.0, 320);
+
+  scene = new scene_t(2000.0, new vector_t(0.6, 1.0, 0.8));
+  scene.init_viewport(0.0, 0.0, 320.0, 320.0);
+
+  player = new player_t(new vector_t(0.0, 0.0, 0.0), scene.push(new object_t(new vector_t(0.0, 0.0, 0.0), 0.0, 0.0, g_red_kart)));
+
+  scene.push(new object_t(new vector_t(-9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(-3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
+  scene.push(new object_t(new vector_t(9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
+
+  js.lock_mouse();
+
+  animate(draw, 32);
+}
+
+void draw() {
+  background(51);
+
+  // scene.objects[player.index].point = player.point;
+  // scene.objects[player.index].angle_y = player.angle + PI / 2.0;
+
+  render.init_frame();
+
+  // scene.load_faces(player.point.add(new vector_t(0.0, 5.0, -9.0).rotate_y(player.angle)), 0.0, -player.angle);
+  scene.load_faces(player.point.add(new vector_t(0.0, 0.0, 0.0).rotate_y(player.angle)), 0.0, -player.angle);
+  scene.draw_faces(render);
+
+  render.draw_frame();
+
+  if (keyPressed) {
+    if (key == "w") {
+      player.point = player.point.add(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
+    } else if (key == "a") {
+      player.angle += 0.03;
+    } else if (key == "s") {
+      player.point = player.point.subtract(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
+    } else if (key == "d") {
+      player.angle -= 0.03;
+    }
+
+    if (key == "q") {
+      player.point.y += 0.3;
+    } else if (key == "z") {
+      player.point.y -= 0.3;
+    }
+  }
+}
+
+void on_event_js(js_event_t event) {
+  if (event.name == "lock_delta") {
+    double delta_x = event.data_double[0];
+    double delta_y = event.data_double[1];
+
+    player.angle -= delta_x / 320.0;
+  }
+}

@@ -1,0 +1,31 @@
+#ifndef __PLAYER_IJ__
+#define __PLAYER_IJ__
+
+#include <vector.ij>
+
+// === player.ij ===
+
+#define BUTTON_UP    0
+#define BUTTON_DOWN  1
+#define BUTTON_LEFT  2
+#define BUTTON_RIGHT 3
+
+class player_t {
+  vector_t point;
+  double angle;
+  
+  int index;
+  
+  bool buttons[];
+  
+  player_t(vector_t point, int index) {
+    this.point = point;
+    this.angle = 0.0;
+    
+    this.index = index;
+  }
+};
+
+// ^^^ player.ij ^^^
+
+#endif
