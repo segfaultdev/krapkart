@@ -1,0 +1,186 @@
+#ifndef __FONT_IJ__
+#define __FONT_IJ__
+
+#include <render.ij>
+
+#ifndef FONT_WIDTH
+#define FONT_WIDTH 5
+#endif
+
+#ifndef FONT_HEIGHT
+#define FONT_HEIGHT 5
+#endif
+
+// === font.ij ===
+
+class f_span_t {
+  int y;
+  
+  int x0;
+  int x1;
+  
+  f_span_t(int y, int x0, int x1) {
+    this.y = y;
+    
+    this.x0 = x0;
+    this.x1 = x1;
+  }
+};
+
+class f_char_t {
+  f_span_t normal_spans[];
+  int normal_count;
+  
+  f_span_t shadow_spans[];
+  int shadow_count;
+  
+  f_char_t() {
+    this.normal_spans = new f_span_t[FONT_WIDTH * FONT_HEIGHT];
+    this.normal_count = 0;
+    
+    this.shadow_spans = new f_span_t[FONT_WIDTH * FONT_HEIGHT];
+    this.shadow_count = 0;
+  }
+};
+
+class font_t {
+  f_char_t chars[];
+  
+  font_t(int array[]) {
+    this.chars = new f_char_t[64];
+    
+    for (int i = 0; i < 64; i++) {
+      this.chars[i] = new f_char_t();
+      
+      for (int j = 0; j < FONT_HEIGHT; j++) {
+        f_span_t span = new f_span_t(j, 0, 1);
+        int m = array[j + i * FONT_HEIGHT];
+        
+        int p = m % 2;
+        int n = 2;
+        
+        while (span.x1 < FONT_WIDTH) {
+          int q = (m / n) % 2;
+          n *= 2;
+          
+          if (p == q) {
+            span.x1++;
+          } else {
+            if (p > 0) {
+              this.chars[i].normal_spans[this.chars[i].normal_count] = span;
+              this.chars[i].normal_count++;
+            }
+            
+            span = new f_span_t(j, span.x1, span.x1 + 1);
+          }
+          
+          p = q;
+        }
+        
+        if (p > 0) {
+          this.chars[i].normal_spans[this.chars[i].normal_count] = span;
+          this.chars[i].normal_count++;
+        }
+        
+        p = m % 2;
+        n = 2;
+        
+        for (int k = 1; k < FONT_WIDTH; k++) {
+          int q = (m / n) % 2;
+          n *= 2;
+          
+          if (p > 0 && q == 0) {
+            this.chars[i].shadow_spans[this.chars[i].shadow_count] = new f_span_t(j, k, k + 1);
+            this.chars[i].shadow_count++;
+          }
+          
+          p = q;
+        }
+      }
+    }
+  }
+  
+  void b_text(int buffer[], int pitch, String string, int x, int y, int scale, double red, double green, double blue) {
+    int length = string.length();
+    
+    for (int i = 0; i < length; i++) {
+      int index = ((int)(string.charAt(i))) - 32;
+      int delta_x = i * FONT_WIDTH * scale + x;
+      
+      for (int j = 0; j < this.chars[index].normal_count; j++) {
+        const f_span_t span = this.chars[index].normal_spans[j];
+        
+        for (int k = 0; k < scale; k++) {
+          for (int l = span.x0 * scale + delta_x; l < span.x1 * scale + delta_x; l++) {
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 0] = red;
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 1] = green;
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 2] = blue;
+          }
+        }
+      }
+    }
+  }
+  
+  void b_text_shadow(int buffer[], int pitch, String string, int x, int y, int scale, double red, double green, double blue, double shadow_red, double shadow_green, double shadow_blue) {
+    int length = string.length();
+    
+    for (int i = 0; i < length; i++) {
+      int index = ((int)(string.charAt(i))) - 32;
+      int delta_x = i * FONT_WIDTH * scale + x;
+      
+      for (int j = 0; j < this.chars[index].shadow_count; j++) {
+        const f_span_t span = this.chars[index].shadow_spans[j];
+        
+        for (int k = 0; k < scale; k++) {
+          for (int l = span.x0 * scale + delta_x; l < span.x1 * scale + delta_x; l++) {
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 0] = shadow_red;
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 1] = shadow_green;
+            buffer[l * 3 + (span.y * scale + y + k) * pitch + 2] = shadow_blue;
+          }
+        }
+      }
+    }
+    
+    this.b_text(buffer, pitch, string, x, y, scale, red, green, blue);
+  }
+  
+  void text(render_t render, String string, int x, int y, double z, int scale, double red, double green, double blue) {
+    int length = string.length();
+    
+    for (int i = 0; i < length; i++) {
+      int index = ((int)(string.charAt(i))) - 32;
+      int delta_x = i * FONT_WIDTH * scale + x;
+      
+      for (int j = 0; j < this.chars[index].normal_count; j++) {
+        const f_span_t span = this.chars[index].normal_spans[j];
+        
+        for (int k = 0; k < scale; k++) {
+          render.push_span(span.y * scale + y + k, span.x0 * scale + delta_x, z, span.x1 * scale + delta_x, z, red, green, blue);
+        }
+      }
+    }
+  }
+  
+  void text_shadow(render_t render, String string, int x, int y, double z, int scale, double red, double green, double blue, double shadow_red, double shadow_green, double shadow_blue) {
+    int length = string.length();
+    
+    for (int i = 0; i < length; i++) {
+      int index = ((int)(string.charAt(i))) - 32;
+      int delta_x = i * FONT_WIDTH * scale + x;
+      
+      for (int j = 0; j < this.chars[index].shadow_count; j++) {
+        const f_span_t span = this.chars[index].shadow_spans[j];
+        
+        for (int k = 0; k < scale; k++) {
+          render.push_span(span.y * scale + y + k, span.x0 * scale + delta_x, R(R(z) - 0.5), span.x1 * scale + delta_x, R(R(z) - 0.5), shadow_red, shadow_green, shadow_blue);
+        }
+      }
+    }
+    
+    this.text(render, string, x, y, z, scale, red, green, blue);
+  }
+};
+
+// ^^^ font.ij ^^^
+
+#endif

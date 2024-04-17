@@ -6,74 +6,185 @@
 // 
 // https://github.com/segfaultdev/krapkart
 
+// Optimization to-do list (GOAL: 4096 faces @ 60 FPS) (REAL: 11000 faces @ 27 FPS):
+// - [x] Merge contiguous spans (21% draw call reduction).
+// - [x] Replace heaps with column buckets (25% render speed-up).
+// - [x] Convert all math function calls to pure JavaScript.
+// - [x] Disregard light order (and use vertex instead of center for point lights).
+// - [x] Switch to requestAnimationFrame().
+// - [x] Preallocate all arrays in render (22% render speed-up).
+// - [x] Forcing "const" to go through the code generator (23% render speed-up).
+// - [ ] Implement per-object frustum culling.
+// - [ ] Implement per-face frustum culling (might be too slow, test first).
+// - [ ] Make lower-poly models for objects that are far away.
+
+// Features to-do list:
+// - [x] Fix editor page bar gradients.
+// - [x] Design height state for editor.
+// - [x] Implement player movement.
+// - [ ] Implement smart camera.
+// - [ ] Implement collision detection and laps.
+// - [ ] Implement race replays.
+
+#define SCREEN_SIZE 128
+
+#define DECOR_Y -2.0
+
+#define STATE_GAME   0
+#define STATE_EDITOR 1
+#define STATE_INTRO  2
+#define STATE_COUNT  3
+
 #include <js_inject.ij>
-#include <player.ij>
+#include <profile.ij>
 #include <render.ij>
-#include <scene.ij>
+#include <font.ij>
+#include <unit.ij>
 
-#include <g_models.ij>
+#include <g_fonts.ij>
 
+#include <s_editor.ij>
+#include <s_intro.ij>
+#include <s_game.ij>
+
+unit_t units[];
+int heights[];
+
+profile_t profile;
 render_t render;
-scene_t scene;
 
-player_t player;
+font_t font;
+
+int state = STATE_INTRO;
+int target_state = STATE_INTRO;
+
+double target_opacity = 0.0;
+
+double last_delta_ms = 16.667;
+double mean_delta_ms = 16.667;
+
+double mouse_x;
+double mouse_y;
+
+bool p_mousePressed = false;
+bool is_debug = false;
 
 void main() {
-  render = new render_t(0.0, 0.0, 1.0, 320);
+  units = new unit_t[TRACK_WIDTH * TRACK_HEIGHT];
+  heights = new int[(TRACK_WIDTH / 2 + 1) * (TRACK_HEIGHT + 1)];
   
-  scene = new scene_t(2000.0, new vector_t(0.6, 1.0, 0.8));
-  scene.init_viewport(0.0, 0.0, 320.0, 320.0);
+  for (int i = 0; i < TRACK_WIDTH * TRACK_HEIGHT; i++) {
+    units[i] = new unit_t(-1, -1, 0, 0);
+  }
   
-  player = new player_t(new vector_t(0.0, 0.0, 0.0), scene.push(new object_t(new vector_t(0.0, 0.0, 0.0), 0.0, 0.0, g_red_kart)));
+  for (int i = 0; i < TRACK_HEIGHT + 1; i++) {
+    for (int j = 0; j < TRACK_WIDTH / 2 + 1; j++) {
+      if (i == 0 || j == 0 || i == TRACK_HEIGHT || j == TRACK_WIDTH / 2) {
+        heights[j + i * (TRACK_WIDTH / 2 + 1)] = -1;
+      } else {
+        heights[j + i * (TRACK_WIDTH / 2 + 1)] = 0;
+      }
+    }
+  }
   
-  scene.push(new object_t(new vector_t(-9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
-  scene.push(new object_t(new vector_t(-3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
-  scene.push(new object_t(new vector_t(3.0, 0.0, 10.0), 0.0, 0.0, g_Cone));
-  scene.push(new object_t(new vector_t(9.0, 0.0, 6.0), 0.0, 0.0, g_Cone));
+  profile = new profile_t();
+  render = new render_t(0, 0, 320, SCREEN_SIZE, SCREEN_SIZE);
   
-  js.lock_mouse();
+  font = new font_t(g_font55_png);
   
+  init();
+  
+  profile.begin();
   animate(draw, 32);
 }
 
-void draw() {
-  background(51);
-  
-  // scene.objects[player.index].point = player.point;
-  // scene.objects[player.index].angle_y = player.angle + PI / 2.0;
-  
-  render.init_frame();
-  
-  // scene.load_faces(player.point.add(new vector_t(0.0, 5.0, -9.0).rotate_y(player.angle)), 0.0, -player.angle);
-  scene.load_faces(player.point.add(new vector_t(0.0, 0.0, 0.0).rotate_y(player.angle)), 0.0, -player.angle);
-  scene.draw_faces(render);
-  
-  render.draw_frame();
-  
-  if (keyPressed) {
-    if (key == "w") {
-      player.point = player.point.add(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
-    } else if (key == "a") {
-      player.angle += 0.03;
-    } else if (key == "s") {
-      player.point = player.point.subtract(new vector_t(0.0, 0.0, 0.3).rotate_y(player.angle));
-    } else if (key == "d") {
-      player.angle -= 0.03;
-    }
-    
-    if (key == "q") {
-      player.point.y += 0.3;
-    } else if (key == "z") {
-      player.point.y -= 0.3;
-    }
+void init() {
+  if (state == STATE_GAME) {
+    game_init();
+  } else if (state == STATE_EDITOR) {
+    editor_init();
+  } else if (state == STATE_INTRO) {
+    intro_init();
   }
 }
 
-void on_event(js_event_t event) {
-  if (event.name == "lock_delta") {
-    double delta_x = event.data_double[0];
-    double delta_y = event.data_double[1];
+void draw() {
+  profile.next("VSync idle");
+  
+  background(
+    round(85.0 + (31.0 - 85.0) * target_opacity),
+    round(170.0 + (31.0 - 170.0) * target_opacity),
+    round(255.0 + (31.0 - 255.0) * target_opacity)
+  );
+  
+  render.init_frame();
+  
+  if (state == STATE_GAME) {
+    game_loop(last_delta_ms);
+  } else if (state == STATE_EDITOR) {
+    editor_loop(last_delta_ms);
+  } else if (state == STATE_INTRO) {
+    intro_loop(last_delta_ms);
+  }
+  
+  if (abs(target_opacity) >= 0.005) {
+    for (int i = 0; i < render.span_count; i++) {
+      render.spans[i].red += (31.0 - render.spans[i].red) * target_opacity;
+      render.spans[i].green += (31.0 - render.spans[i].green) * target_opacity;
+      render.spans[i].blue += (31.0 - render.spans[i].blue) * target_opacity;
+    }
+  }
+  
+  if (target_state != state) {
+    target_opacity += (1.0 - target_opacity) * (1.0 - pow(0.02, last_delta_ms / 1000.0));
     
-    player.angle -= delta_x / 320.0;
+    if (abs(target_opacity - 1.0) < 0.005) {
+      state = target_state;
+      init();
+    }
+  } else {
+    target_opacity += (0.0 - target_opacity) * (1.0 - pow(0.02, last_delta_ms / 1000.0));
+  }
+  
+  if (is_debug) {
+    double frame_rate = round(100000.0 / mean_delta_ms) / 100.0;
+    
+    font.text_shadow(render, frame_rate + " FPS", 0, 0, R(256), 1, 255.0, 255.0, 255.0, 85.0, 85.0, 85.0);
+    profile.next("Shift+P debug text");
+  }
+  
+  render.draw_lines();
+  profile.next("S-buffer draw");
+  
+  profile.end();
+  
+  last_delta_ms = profile.get_total();
+  mean_delta_ms = mean_delta_ms + (last_delta_ms - mean_delta_ms) * 0.1;
+  
+  mouse_x = (mouseX * render.column_count) / 320.0;
+  mouse_y = (mouseY * render.line_count) / 320.0;
+  
+  p_mousePressed = mousePressed;
+  
+  profile.begin();
+}
+
+void on_event(js_event_t event) {
+  if (event.name == "key_pressed") {
+    if (event.data_string[0] == "p") {
+      profile.show();
+      return;
+    } else if (event.data_string[0] == "P") {
+      is_debug = !is_debug;
+      return;
+    }
+  }
+  
+  if (state == STATE_GAME) {
+    game_on_event(event);
+  } else if (state == STATE_EDITOR) {
+    editor_on_event(event);
+  } else if (state == STATE_INTRO) {
+    intro_on_event(event);
   }
 }

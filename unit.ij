@@ -1,0 +1,567 @@
+#ifndef __UNIT_IJ__
+#define __UNIT_IJ__
+
+#ifndef TRACK_WIDTH
+#define TRACK_WIDTH 20
+#endif
+
+#ifndef TRACK_HEIGHT
+#define TRACK_HEIGHT 10
+#endif
+
+#ifndef TRACK_SCALE
+#define TRACK_SCALE 60
+#endif
+
+#define U_UNIT_COUNT  41
+#define U_EXTRA_COUNT 15
+#define U_LAND_COUNT  5
+
+// === unit.ij ===
+
+class unit_t {
+  int unit;
+  int extra;
+  int land;
+  
+  int side;
+  
+  unit_t(int unit, int extra, int land, int side) {
+    this.unit = unit;
+    this.extra = extra;
+    this.land = land;
+    
+    this.side = side;
+  }
+  
+  face_t[] get_unit_model() {
+    if (this.unit == 0) {
+      return g_unit_00;
+    } else if (this.unit == 1) {
+      return g_unit_01;
+    } else if (this.unit == 2) {
+      return g_unit_02;
+    } else if (this.unit == 3) {
+      return g_unit_03;
+    } else if (this.unit == 4) {
+      return g_unit_04;
+    } else if (this.unit == 5) {
+      return g_unit_05;
+    } else if (this.unit == 6) {
+      return g_unit_06;
+    } else if (this.unit == 7) {
+      return g_unit_07;
+    } else if (this.unit == 8) {
+      return g_unit_08;
+    } else if (this.unit == 9) {
+      return g_unit_09;
+    } else if (this.unit == 10) {
+      return g_unit_10;
+    } else if (this.unit == 11) {
+      return g_unit_11;
+    } else if (this.unit == 12) {
+      return g_unit_12;
+    } else if (this.unit == 13) {
+      return g_unit_13;
+    } else if (this.unit == 14) {
+      return g_unit_14;
+    } else if (this.unit == 15) {
+      return g_unit_15;
+    } else if (this.unit == 16) {
+      return g_unit_16;
+    } else if (this.unit == 17) {
+      return g_unit_17;
+    } else if (this.unit == 18) {
+      return g_unit_18;
+    } else if (this.unit == 19) {
+      return g_unit_19;
+    } else if (this.unit == 20) {
+      return g_unit_20;
+    } else if (this.unit == 21) {
+      return g_unit_21;
+    } else if (this.unit == 22) {
+      return g_unit_22;
+    } else if (this.unit == 23) {
+      return g_unit_23;
+    } else if (this.unit == 24) {
+      return g_unit_24;
+    } else if (this.unit == 25) {
+      return g_unit_25;
+    } else if (this.unit == 26) {
+      return g_unit_26;
+    } else if (this.unit == 27) {
+      return g_unit_27;
+    } else if (this.unit == 28) {
+      return g_unit_28;
+    } else if (this.unit == 29) {
+      return g_unit_29;
+    } else if (this.unit == 30) {
+      return g_unit_30;
+    } else if (this.unit == 31) {
+      return g_unit_31;
+    } else if (this.unit == 32) {
+      return g_unit_32;
+    } else if (this.unit == 33) {
+      return g_unit_33;
+    } else if (this.unit == 34) {
+      return g_unit_34;
+    } else if (this.unit == 35) {
+      return g_unit_35;
+    } else if (this.unit == 36) {
+      return g_unit_36;
+    } else if (this.unit == 37) {
+      return g_unit_37;
+    } else if (this.unit == 38) {
+      return g_unit_38;
+    } else if (this.unit == 39) {
+      return g_unit_39;
+    } else if (this.unit == 40) {
+      return g_unit_40;
+    }
+    
+    return new face_t[0];
+  }
+  
+  face_t[] get_extra_model() {
+    if (this.extra == 0) {
+      return g_extra_00;
+    } else if (this.extra == 1) {
+      return g_extra_01;
+    } else if (this.extra == 2) {
+      return g_extra_02;
+    } else if (this.extra == 3) {
+      return g_extra_03;
+    } else if (this.extra == 4) {
+      return g_extra_04;
+    } else if (this.extra == 5) {
+      return g_extra_05;
+    } else if (this.extra == 6) {
+      return g_extra_06;
+    } else if (this.extra == 7) {
+      return g_extra_07;
+    } else if (this.extra == 8) {
+      return g_extra_08;
+    } else if (this.extra == 9) {
+      return g_extra_09;
+    } else if (this.extra == 10) {
+      return g_extra_10;
+    } else if (this.extra == 11) {
+      return g_extra_11;
+    } else if (this.extra == 12) {
+      return g_extra_12;
+    } else if (this.extra == 13) {
+      return g_extra_12;
+    } else if (this.extra == 14) {
+      return g_extra_14;
+    }
+    
+    return new face_t[0];
+  }
+  
+  int get_land_face_count(double h0, double h1, double h2) {
+    if (h0 < DECOR_Y && h1 < DECOR_Y && h2 < DECOR_Y) {
+      return 0;
+    }
+    
+    if (h0 < DECOR_Y && h1 >= DECOR_Y && h2 >= DECOR_Y) {
+      return 2;
+    }
+    
+    if (h1 < DECOR_Y && h2 >= DECOR_Y && h0 >= DECOR_Y) {
+      return 2;
+    }
+    
+    if (h2 < DECOR_Y && h0 >= DECOR_Y && h1 >= DECOR_Y) {
+      return 2;
+    }
+    
+    return 1;
+  }
+  
+  face_t get_model_face(int i, bool darken, double h0, double h1, double h2) {
+    const face_t unit_model[] = this.get_unit_model();
+    const face_t extra_model[] = this.get_extra_model();
+    
+    if (i < unit_model.length) {
+      return unit_model[i];
+    } else if (i < unit_model.length + extra_model.length) {
+      return extra_model[i - unit_model.length];
+    } else if (i < unit_model.length + extra_model.length + this.get_land_face_count(h0, h1, h2)) {
+      i -= unit_model.length + extra_model.length;
+      
+      double red;
+      double green;
+      double blue;
+      
+      if (this.land == 0) {
+        red = 85.0;
+        green = 255.0;
+        blue = 85.0;
+      } else if (this.land == 1) {
+        red = 0.0;
+        green = 170.0;
+        blue = 0.0;
+      } else if (this.land == 2) {
+        red = 255.0;
+        green = 255.0;
+        blue = 85.0;
+      } else if (this.land == 3) {
+        red = 255.0;
+        green = 170.0;
+        blue = 85.0;
+      } else if (this.land == 4) {
+        red = 170.0;
+        green = 85.0;
+        blue = 0.0;
+      } else {
+        return null;
+      }
+      
+      if (darken) {
+        red *= 0.95;
+        green *= 0.95;
+        blue *= 0.95;
+      }
+      
+      const vector_t a = new vector_t(0.0, 0.0, 30.0);
+      const vector_t b = new vector_t(-30.0, 0.0, -30.0);
+      const vector_t c = new vector_t(30.0, 0.0, -30.0);
+      
+      if (h0 >= DECOR_Y && h1 >= DECOR_Y && h2 >= DECOR_Y) {
+        return new face_t(
+          red, green, blue, new vector_t(0.0, 1.0, 0.0),
+          
+          a,
+          b,
+          c
+        );
+      } else if (h0 < DECOR_Y && h1 < DECOR_Y && h2 < DECOR_Y) {
+        return null;
+      } else if (h0 < DECOR_Y && h1 < DECOR_Y) {
+        const double am = (h0 - DECOR_Y) / (h0 - h2);
+        const double bm = (h1 - DECOR_Y) / (h1 - h2);
+        
+        return new face_t(
+          red, green, blue, new vector_t(0.0, 1.0, 0.0),
+          
+          a.add(c.subtract(a).multiply(am)),
+          b.add(c.subtract(b).multiply(am)),
+          c,
+        );
+      } else if (h1 < DECOR_Y && h2 < DECOR_Y) {
+        const double bm = (h1 - DECOR_Y) / (h1 - h0);
+        const double cm = (h2 - DECOR_Y) / (h2 - h0);
+        
+        return new face_t(
+          red, green, blue, new vector_t(0.0, 1.0, 0.0),
+          
+          a,
+          b.add(a.subtract(b).multiply(bm)),
+          c.add(a.subtract(c).multiply(cm)),
+        );
+      } else if (h2 < DECOR_Y && h0 < DECOR_Y) {
+        const double cm = (h2 - DECOR_Y) / (h2 - h1);
+        const double am = (h0 - DECOR_Y) / (h0 - h1);
+        
+        return new face_t(
+          red, green, blue, new vector_t(0.0, 1.0, 0.0),
+          
+          a.add(b.subtract(a).multiply(am)),
+          b,
+          c.add(b.subtract(c).multiply(cm)),
+        );
+      } else if (h0 < DECOR_Y) {
+        const double bm = (h1 - DECOR_Y) / (h1 - h0);
+        const double cm = (h2 - DECOR_Y) / (h2 - h0);
+        
+        if (i > 0) {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            c.add(a.subtract(c).multiply(cm)),
+            b.add(a.subtract(b).multiply(bm)),
+            b,
+          );
+        } else {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            b,
+            c,
+            c.add(a.subtract(c).multiply(cm)),
+          );
+        }
+      } else if (h1 < DECOR_Y) {
+        const double cm = (h2 - DECOR_Y) / (h2 - h1);
+        const double am = (h0 - DECOR_Y) / (h0 - h1);
+        
+        if (i > 0) {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            a.add(b.subtract(a).multiply(am)),
+            c.add(b.subtract(c).multiply(cm)),
+            c,
+          );
+        } else {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            c,
+            a,
+            a.add(b.subtract(a).multiply(am)),
+          );
+        }
+      } else if (h2 < DECOR_Y) {
+        const double am = (h0 - DECOR_Y) / (h0 - h2);
+        const double bm = (h1 - DECOR_Y) / (h1 - h2);
+        
+        if (i > 0) {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            b.add(c.subtract(b).multiply(bm)),
+            a.add(c.subtract(a).multiply(am)),
+            a,
+          );
+        } else {
+          return new face_t(
+            red, green, blue, new vector_t(0.0, 1.0, 0.0),
+            
+            a,
+            b,
+            b.add(c.subtract(b).multiply(bm)),
+          );
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  int get_model_face_count(double h0, double h1, double h2) {
+    const face_t unit_model[] = this.get_unit_model();
+    const face_t extra_model[] = this.get_extra_model();
+    
+    int count = unit_model.length + extra_model.length;
+    
+    if (this.land >= 0) {
+      count += this.get_land_face_count(h0, h1, h2);
+    }
+    
+    return count;
+  }
+  
+  void draw(render_t render, double x, double y, double h0, double h1, double h2, double min_z, double max_z, double scale, bool flip_y, bool do_mark) {
+    const double tilt_3d = 0.03;
+    int i = 0;
+    
+    const int land_start = this.get_model_face_count(h0, h1, h2) - this.get_land_face_count(h0, h1, h2);
+    
+    while (true) {
+      const face_t face = this.get_model_face(i, flip_y, h0, h1, h2);
+      i++;
+      
+      if (face == null) {
+        break;
+      }
+      
+      double x0 = face.a.x / 30.0;
+      double y0 = face.a.z / 30.0;
+      
+      double x1 = face.b.x / 30.0;
+      double y1 = face.b.z / 30.0;
+      
+      double x2 = face.c.x / 30.0;
+      double y2 = face.c.z / 30.0;
+      
+      for (int j = 0; i < land_start && j < this.side % 3; j++) {
+        const double nx0 = -0.25 * (x0 * 2.0 + y0 * 3.0 + 1.0);
+        const double ny0 = 0.5 * (x0 * 2.0 - y0 - 1.0);
+        
+        x0 = nx0;
+        y0 = ny0;
+        
+        const double nx1 = -0.25 * (x1 * 2.0 + y1 * 3.0 + 1.0);
+        const double ny1 = 0.5 * (x1 * 2.0 - y1 - 1.0);
+        
+        x1 = nx1;
+        y1 = ny1;
+        
+        const double nx2 = -0.25 * (x2 * 2.0 + y2 * 3.0 + 1.0);
+        const double ny2 = 0.5 * (x2 * 2.0 - y2 - 1.0);
+        
+        x2 = nx2;
+        y2 = ny2;
+      }
+      
+      if (i < land_start && (this.side / 3) % 2 > 0) {
+        x0 = -x0;
+        x1 = -x1;
+        x2 = -x2;
+      }
+      
+      const double a0 = abs((-1.0 - x0) * (-1.0 - y0) - (-1.0 - y0) * (1.0 - x0)) * 0.25;
+      const double a1 = abs((1.0 - x0) * (1.0 - y0) - (-1.0 - y0) * (0.0 - x0)) * 0.25;
+      const double a2 = abs((0.0 - x0) * (-1.0 - y0) - (1.0 - y0) * (-1.0 - x0)) * 0.25;
+      
+      const double b0 = abs((-1.0 - x1) * (-1.0 - y1) - (-1.0 - y1) * (1.0 - x1)) * 0.25;
+      const double b1 = abs((1.0 - x1) * (1.0 - y1) - (-1.0 - y1) * (0.0 - x1)) * 0.25;
+      const double b2 = abs((0.0 - x1) * (-1.0 - y1) - (1.0 - y1) * (-1.0 - x1)) * 0.25;
+      
+      const double c0 = abs((-1.0 - x2) * (-1.0 - y2) - (-1.0 - y2) * (1.0 - x2)) * 0.25;
+      const double c1 = abs((1.0 - x2) * (1.0 - y2) - (-1.0 - y2) * (0.0 - x2)) * 0.25;
+      const double c2 = abs((0.0 - x2) * (-1.0 - y2) - (1.0 - y2) * (-1.0 - x2)) * 0.25;
+      
+      if (flip_y) {
+        y0 = -y0;
+        y1 = -y1;
+        y2 = -y2;
+      }
+      
+      double true_ya = face.a.y + h0 * a0 + h1 * a1 + h2 * a2;
+      double true_yb = face.b.y + h0 * b0 + h1 * b1 + h2 * b2;
+      double true_yc = face.c.y + h0 * c0 + h1 * c1 + h2 * c2;
+      
+      if (i < land_start) {
+        true_ya += 1.0;
+        true_yb += 1.0;
+        true_yc += 1.0;
+      }
+      
+      int xa = floor((x0 + (true_ya * tilt_3d)) * scale + x);
+      int ya = floor((y0 - (true_ya * tilt_3d)) * scale + y);
+      double za = ((240.0 - true_ya) * (max_z - min_z)) / 240.0 + min_z;
+      
+      int xb = floor((x1 + (true_yb * tilt_3d)) * scale + x);
+      int yb = floor((y1 - (true_yb * tilt_3d)) * scale + y);
+      double zb = ((240.0 - true_yb) * (max_z - min_z)) / 240.0 + min_z;
+      
+      int xc = floor((x2 + (true_yc * tilt_3d)) * scale + x);
+      int yc = floor((y2 - (true_yc * tilt_3d)) * scale + y);
+      double zc = ((240.0 - true_yc) * (max_z - min_z)) / 240.0 + min_z;
+      
+      double shade = (abs(face.normal.y) + 1.0) * 0.5;
+      
+      double red = face.red * shade;
+      double green = face.green * shade;
+      double blue = face.blue * shade;
+      
+      if (do_mark) {
+        red += (85.0 - red) * 0.3;
+        green += (255.0 - green) * 0.3;
+        blue += (255.0 - blue) * 0.3;
+      }
+      
+      render.push_triangle(xa, ya, za, xb, yb, zb, xc, yc, zc, red, green, blue);
+    }
+  }
+  
+  void load(scene_t scene, double x, double y, double z, double h0, double h1, double h2, bool flip_z) {
+    const double tilt_3d = 0.03;
+    int i = 0;
+    
+    const int land_start = this.get_model_face_count(h0, h1, h2) - this.get_land_face_count(h0, h1, h2);
+    face_t faces[] = new face_t[this.get_model_face_count(h0, h1, h2)];
+    
+    while (true) {
+      const face_t face = this.get_model_face(i, flip_z, h0, h1, h2);
+      
+      if (face == null) {
+        break;
+      }
+      
+      double x0 = face.a.x / 30.0;
+      double z0 = face.a.z / 30.0;
+      
+      double x1 = face.b.x / 30.0;
+      double z1 = face.b.z / 30.0;
+      
+      double x2 = face.c.x / 30.0;
+      double z2 = face.c.z / 30.0;
+      
+      for (int j = 0; i < land_start && j < this.side % 3; j++) {
+        const double nx0 = -0.25 * (x0 * 2.0 + z0 * 3.0 + 1.0);
+        const double nz0 = 0.5 * (x0 * 2.0 - z0 - 1.0);
+        
+        x0 = nx0;
+        z0 = nz0;
+        
+        const double nx1 = -0.25 * (x1 * 2.0 + z1 * 3.0 + 1.0);
+        const double nz1 = 0.5 * (x1 * 2.0 - z1 - 1.0);
+        
+        x1 = nx1;
+        z1 = nz1;
+        
+        const double nx2 = -0.25 * (x2 * 2.0 + z2 * 3.0 + 1.0);
+        const double nz2 = 0.5 * (x2 * 2.0 - z2 - 1.0);
+        
+        x2 = nx2;
+        z2 = nz2;
+      }
+      
+      if (i < land_start && (this.side / 3) % 2 > 0) {
+        x0 = -x0;
+        x1 = -x1;
+        x2 = -x2;
+      }
+      
+      const double a0 = abs((-1.0 - x0) * (-1.0 - z0) - (-1.0 - z0) * (1.0 - x0)) * 0.25;
+      const double a1 = abs((1.0 - x0) * (1.0 - z0) - (-1.0 - z0) * (0.0 - x0)) * 0.25;
+      const double a2 = abs((0.0 - x0) * (-1.0 - z0) - (1.0 - z0) * (-1.0 - x0)) * 0.25;
+      
+      const double b0 = abs((-1.0 - x1) * (-1.0 - z1) - (-1.0 - z1) * (1.0 - x1)) * 0.25;
+      const double b1 = abs((1.0 - x1) * (1.0 - z1) - (-1.0 - z1) * (0.0 - x1)) * 0.25;
+      const double b2 = abs((0.0 - x1) * (-1.0 - z1) - (1.0 - z1) * (-1.0 - x1)) * 0.25;
+      
+      const double c0 = abs((-1.0 - x2) * (-1.0 - z2) - (-1.0 - z2) * (1.0 - x2)) * 0.25;
+      const double c1 = abs((1.0 - x2) * (1.0 - z2) - (-1.0 - z2) * (0.0 - x2)) * 0.25;
+      const double c2 = abs((0.0 - x2) * (-1.0 - z2) - (1.0 - z2) * (-1.0 - x2)) * 0.25;
+      
+      if (flip_z) {
+        z0 = -z0;
+        z1 = -z1;
+        z2 = -z2;
+      }
+      
+      vector_t a = new vector_t(x0 * TRACK_SCALE, (face.a.y + h0 * a0 + h1 * a1 + h2 * a2) * (TRACK_SCALE / 30.0), z0 * TRACK_SCALE);
+      vector_t b = new vector_t(x1 * TRACK_SCALE, (face.b.y + h0 * b0 + h1 * b1 + h2 * b2) * (TRACK_SCALE / 30.0), z1 * TRACK_SCALE);
+      vector_t c = new vector_t(x2 * TRACK_SCALE, (face.c.y + h0 * c0 + h1 * c1 + h2 * c2) * (TRACK_SCALE / 30.0), z2 * TRACK_SCALE);
+      
+      if (i < land_start) {
+        a.y += 1.0;
+        b.y += 1.0;
+        c.y += 1.0;
+      }
+      
+      vector_t normal = a.subtract(b).cross(a.subtract(c)).normal();
+      double dot = normal.dot(face.normal);
+      
+      if (dot >= 0.0 && dot <= 0.75) {
+        normal = normal.multiply(-1.0);
+      }
+      
+      faces[i] = new face_t(
+        face.red, face.green, face.blue,
+        
+        normal,
+        a,
+        b,
+        c
+      );
+      
+      i++;
+    }
+    
+    scene.push_object(new object_t(
+      new vector_t(x, y, z),
+      0.0, 0.0,
+      
+      faces
+    ));
+  }
+};
+
+// ^^^ unit.ij ^^^
+
+#endif

@@ -1,0 +1,493 @@
+#ifndef __S_EDITOR_IJ__
+#define __S_EDITOR_IJ__
+
+#include <js_inject.ij>
+#include <render.ij>
+#include <unit.ij>
+
+#define EDITOR_UNIT   0
+#define EDITOR_HEIGHT 1
+#define EDITOR_COUNT  2
+
+// === s_editor.ij ===
+
+double editor_lin_speed = 0.0;
+double editor_pow_speed = 0.0;
+
+double editor_offset_x = 0.0;
+double editor_offset_y = 0.0;
+
+double editor_scale = 20.0;
+
+int editor_state = EDITOR_UNIT;
+
+int editor_unit = 0;
+int editor_extra = 0;
+int editor_land = 0;
+
+bool editor_do_flip = false;
+int editor_side = 0;
+
+int editor_page = 0;
+
+int editor_point_x0 = -1;
+int editor_point_z0 = -1;
+
+int editor_point_x1 = -1;
+int editor_point_z1 = -1;
+
+void editor_init() {
+  return;
+}
+
+void editor_loop(double delta_ms) {
+  const double tile_shift_x = mouse_x - editor_offset_x * editor_scale - render.column_count * 0.5;
+  const double tile_shift_y = mouse_y - editor_offset_y * editor_scale - render.line_count * 0.5;
+  
+  const int tile_y = floor((tile_shift_y * 0.5) / editor_scale);
+  const int tile_x = floor((tile_shift_x * 0.5 + tile_shift_y * 0.25) / editor_scale) + floor((tile_shift_x * 0.5 - tile_shift_y * 0.25) / editor_scale) - tile_y;
+  
+  const int editor_point_xl = ((editor_point_x0 < editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zl = ((editor_point_z0 < editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  const int editor_point_xh = ((editor_point_x0 > editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zh = ((editor_point_z0 > editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  for (int i = 0; i < TRACK_HEIGHT; i++) {
+    for (int j = 0; j < TRACK_WIDTH; j++) {
+      const double x = (i + j + 1 + editor_offset_x) * editor_scale + render.column_count * 0.5;
+      const double y = (i * 2 + 1 + editor_offset_y) * editor_scale + render.line_count * 0.5;
+      
+      int h0_x;
+      int h0_z;
+      
+      int h1_x;
+      int h1_z;
+      
+      int h2_x;
+      int h2_z;
+      
+      if (j % 2 > 0) {
+        h0_x = j / 2 + 1;
+        h0_z = i;
+        
+        h1_x = j / 2;
+        h1_z = i + 1;
+        
+        h2_x = j / 2 + 1; 
+        h2_z = i + 1;
+      } else {
+        h0_x = j / 2;
+        h0_z = i + 1;
+        
+        h1_x = j / 2;
+        h1_z = i;
+        
+        h2_x = j / 2 + 1; 
+        h2_z = i;
+      }
+      
+      bool do_mark = false;
+      
+      if (((h0_x >= editor_point_xl && h0_x <= editor_point_xh) && (h0_z >= editor_point_zl && h0_z <= editor_point_zh)) &&
+          ((h1_x >= editor_point_xl && h1_x <= editor_point_xh) && (h1_z >= editor_point_zl && h1_z <= editor_point_zh)) &&
+          ((h2_x >= editor_point_xl && h2_x <= editor_point_xh) && (h2_z >= editor_point_zl && h2_z <= editor_point_zh))) {
+        do_mark = true;
+      }
+      
+      const double h0 = heights[h0_x + h0_z * (TRACK_WIDTH / 2 + 1)] * 7.5;
+      const double h1 = heights[h1_x + h1_z * (TRACK_WIDTH / 2 + 1)] * 7.5;
+      const double h2 = heights[h2_x + h2_z * (TRACK_WIDTH / 2 + 1)] * 7.5;
+      
+      const unit_t unit = units[j + i * TRACK_WIDTH];
+      unit.draw(render, x, y, h0, h1, h2, 16.0, 4294967296.0, editor_scale, (j % 2) > 0, ((tile_x == j && tile_y == i && editor_state == EDITOR_UNIT) || do_mark));
+    }
+  }
+  
+  render.push_rect(1, 1, R(1), 33, 8, 255.0, 255.0, 255.0);
+  render.push_rect(2, 2, R(2), 31, 6, 0.0, 0.0, 0.0);
+  
+  if (mousePressed && mouse_x >= 1 && mouse_x < 34 && mouse_y >= 1 && mouse_y < 9) {
+    if (!p_mousePressed) {
+      editor_state = (editor_state + 1) % EDITOR_COUNT;
+    }
+    
+    mouse_x = 4294967296.0;
+    mouse_y = 4294967296.0;
+  }
+  
+  if (editor_state == EDITOR_UNIT) {
+    font.text(render, "UNIT", 8, 3, R(3), 1, 255.0, 255.0, 255.0);
+    editor_unit_loop(delta_ms);
+  } else if (editor_state == EDITOR_HEIGHT) {
+    font.text(render, "HEIGHT", 3, 3, R(3), 1, 255.0, 255.0, 255.0);
+    editor_height_loop(delta_ms);
+  }
+  
+  editor_lin_speed = (delta_ms * 10.0) / 1000.0;
+  editor_pow_speed = 1.0 - pow(0.1, delta_ms / 1000.0);
+  
+  if (keyPressed) {
+    if (key == "w") {
+      editor_offset_y += editor_lin_speed;
+    } else if (key == "a") {
+      editor_offset_x += editor_lin_speed;
+    } else if (key == "s") {
+      editor_offset_y -= editor_lin_speed;
+    } else if (key == "d") {
+      editor_offset_x -= editor_lin_speed;
+    } else if (key == "i") {
+      editor_scale += (120.0 - editor_scale) * editor_pow_speed;
+    } else if (key == "o") {
+      editor_scale += (10.0 - editor_scale) * editor_pow_speed;
+    }
+  }
+}
+
+void editor_unit_loop(double delta_ms) {
+  const double tile_shift_x = mouse_x - editor_offset_x * editor_scale - render.column_count * 0.5;
+  const double tile_shift_y = mouse_y - editor_offset_y * editor_scale - render.line_count * 0.5;
+  
+  const int tile_y = floor((tile_shift_y * 0.5) / editor_scale);
+  const int tile_x = floor((tile_shift_x * 0.5 + tile_shift_y * 0.25) / editor_scale) + floor((tile_shift_x * 0.5 - tile_shift_y * 0.25) / editor_scale) - tile_y;
+  
+  render.push_rect(0, render.line_count - 32, R(1), render.column_count, 32, 255.0, 255.0, 255.0);
+  render.push_rect(1, render.line_count - 24, R(2), render.column_count - 2, 23, 0.0, 0.0, 0.0);
+  
+  render.push_rect(render.column_count - 18, 1, R(1), 8, 8, 255.0, 255.0, 255.0);
+  render.push_rect(render.column_count - 17, 2, R(2), 6, 6, 0.0, 0.0, 0.0);
+  
+  font.text(render, "I", (render.column_count - 17) + (7 - FONT_WIDTH) / 2, 2 + (7 - FONT_HEIGHT) / 2, R(3), 1, 255.0, 255.0, 255.0);
+  
+  render.push_rect(render.column_count - 18, 10, R(1), 8, 8, 255.0, 255.0, 255.0);
+  render.push_rect(render.column_count - 17, 11, R(2), 6, 6, 0.0, 0.0, 0.0);
+  
+  font.text(render, "O", (render.column_count - 17) + (7 - FONT_WIDTH) / 2, 11 + (7 - FONT_HEIGHT) / 2, R(3), 1, 255.0, 255.0, 255.0);
+  
+  render.push_rect(render.column_count - 9, 1, R(1), 8, 8, 255.0, 255.0, 255.0);
+  render.push_rect(render.column_count - 8, 2, R(2), 6, 6, 0.0, 0.0, 0.0);
+  
+  font.text(render, "R", (render.column_count - 8) + (7 - FONT_WIDTH) / 2, 2 + (7 - FONT_HEIGHT) / 2, R(3), 1, 255.0, 255.0, 255.0);
+  
+  render.push_rect(render.column_count - 9, 10, R(1), 8, 8, 255.0, 255.0, 255.0);
+  render.push_rect(render.column_count - 8, 11, R(2), 6, 6, 0.0, 0.0, 0.0);
+  
+  font.text(render, "F", (render.column_count - 8) + (7 - FONT_WIDTH) / 2, 11 + (7 - FONT_HEIGHT) / 2, R(3), 1, 255.0, 255.0, 255.0);
+  
+  render.push_rect(1, render.line_count - 31, R(2), 6, 6, 0.0, 0.0, 0.0);
+  render.push_rect(render.column_count - 7, render.line_count - 31, R(2), 6, 6, 0.0, 0.0, 0.0);
+  
+  const int page_limit = (render.column_count - 2) / 24;
+  
+  const int unit_pages = (U_UNIT_COUNT + (page_limit - 1)) / page_limit;
+  const int extra_pages = (U_EXTRA_COUNT + (page_limit - 1)) / page_limit;
+  const int land_pages = (U_LAND_COUNT + (page_limit - 1)) / page_limit;
+  
+  String text;
+  
+  double red_0 = 23.0;
+  double green_0 = 119.0;
+  double blue_0 = 11.0;
+  
+  double red_1 = 143.0;
+  double green_1 = 80.0;
+  double blue_1 = 11.0;
+  
+  if (editor_page < unit_pages) {
+    text = "UNIT " + (editor_page + 1) + "/" + unit_pages;
+    
+    red_0 = 85.0;
+    green_0 = 85.0;
+    blue_0 = 85.0;
+    
+    red_1 = 255.0;
+    green_1 = 255.0;
+    blue_1 = 85.0;
+  } else if (editor_page < unit_pages + extra_pages) {
+    text = "EXTRA " + ((editor_page - unit_pages) + 1) + "/" + extra_pages;
+    
+    red_0 = 255.0;
+    green_0 = 85.0;
+    blue_0 = 85.0;
+    
+    red_1 = 85.0;
+    green_1 = 170.0;
+    blue_1 = 255.0;
+  } else if (editor_page < unit_pages + extra_pages + land_pages) {
+    text = "LAND " + ((editor_page - (unit_pages + extra_pages)) + 1) + "/" + land_pages;
+    
+    red_0 = 0.0;
+    green_0 = 170.0;
+    blue_0 = 85.0;
+    
+    red_1 = 170.0;
+    green_1 = 85.0;
+    blue_1 = 0.0;
+  }
+  
+  for (int i = 0; i < 10; i++) {
+    int j;
+    int pages;
+    
+    if (editor_page < unit_pages) {
+      j = i + editor_page * 10;
+      pages = unit_pages;
+    } else if (editor_page < unit_pages + extra_pages) {
+      j = i + (editor_page - unit_pages) * 10;
+      pages = extra_pages;
+    } else if (editor_page < unit_pages + extra_pages + land_pages) {
+      j = i + (editor_page - (unit_pages + extra_pages)) * 10;
+      pages = land_pages;
+    }
+    
+    const double red = red_0 + (red_1 - red_0) * (j / (pages * 10.0 - 1.0));
+    const double green = green_0 + (green_1 - green_0) * (j / (pages * 10.0 - 1.0));
+    const double blue = blue_0 + (blue_1 - blue_0) * (j / (pages * 10.0 - 1.0));
+    
+    const int px = round(((i - 1) * (render.column_count - 16)) / 9.0 + 0.1) + 8;
+    const int ix = round((i * (render.column_count - 16)) / 9.0) + 8;
+    const int nx = round(((i + 1) * (render.column_count - 16)) / 9.0) + 8;
+    
+    const int y0 = render.line_count - 31;
+    const int y1 = render.line_count - 26;
+    
+    if (i > 0) {
+      render.push_triangle(ix, y0, R(2), ix, y1, R(2), px, y1, R(2), red, green, blue);
+    }
+    
+    if (i + 1 < 10) {
+      render.push_triangle(ix, y0, R(2), nx, y0, R(2), ix, y1, R(2), red, green, blue);
+    }
+  }
+  
+  font.text(render, text, (render.column_count - text.length() * FONT_WIDTH) / 2, render.line_count - 30, R(3), 1, 255.0, 255.0, 255.0);
+  
+  for (int i = 0; i < page_limit; i++) {
+    const int x = round(((render.column_count - 26) * i) / (page_limit - 1.0)) + 1;
+    const int y = (render.line_count - 25) + 1;
+    
+    int side = editor_side;
+    
+    if (editor_do_flip) {
+      side += 3;
+    }
+    
+    const int j = i + editor_page * page_limit;
+    unit_t unit;
+    
+    bool do_mark = false;
+    
+    if (editor_page < unit_pages) {
+      unit = new unit_t(j, -1, -1, side);
+      
+      if (editor_unit == j) {
+        do_mark = true;
+      }
+    } else if (editor_page < unit_pages + extra_pages) {
+      unit = new unit_t(-1, j - unit_pages * page_limit, -1, side);
+      
+      if (editor_extra == j - unit_pages * page_limit) {
+        do_mark = true;
+      }
+    } else if (editor_page < unit_pages + extra_pages + land_pages) {
+      unit = new unit_t(-1, -1, j - (unit_pages + extra_pages) * page_limit, side);
+      
+      if (editor_land == j - (unit_pages + extra_pages) * page_limit) {
+        do_mark = true;
+      }
+    }
+    
+    if (do_mark) {
+      render.push_rect(x, y, R(3), 23, 23, 0.0, 63.0, 63.0);
+    }
+    
+    unit.draw(render, x + 12, y + 12, 0.0, 0.0, 0.0, R(4096), R(6), 11.0, false, do_mark);
+  }
+  
+  if (mousePressed) {
+    if (mouse_x >= render.column_count - 18 && mouse_x < render.column_count - 10) {
+      if (mouse_y >= 1 && mouse_y < 9) {
+        editor_scale += (120.0 - editor_scale) * editor_pow_speed;
+        return;
+      }
+      
+      if (mouse_y >= 10 && mouse_y < 18) {
+        editor_scale += (10.0 - editor_scale) * editor_pow_speed;
+        return;
+      }
+    }
+    
+    if (mouse_x >= render.column_count - 9 && mouse_x < render.column_count - 1) {
+      if (mouse_y >= 1 && mouse_y < 9) {
+        if (!p_mousePressed) {
+          editor_side = (editor_side + 1) % 3;
+        }
+        
+        return;
+      }
+      
+      if (mouse_y >= 10 && mouse_y < 18) {
+        if (!p_mousePressed) {
+          editor_do_flip = !editor_do_flip;
+        }
+        
+        return;
+      }
+    }
+    
+    if (mouse_y >= render.line_count - 32) {
+      if (mouse_y < render.line_count - 24) {
+        if (mouse_x >= 0 && mouse_x < 8) {
+          if (!p_mousePressed) {
+            editor_page = (editor_page + ((unit_pages + extra_pages + land_pages) - 1)) % (unit_pages + extra_pages + land_pages);
+          }
+        } else if (mouse_x >= render.column_count - 8 && mouse_x < render.column_count) {
+          if (!p_mousePressed) {
+            editor_page = (editor_page + 1) % (unit_pages + extra_pages + land_pages);
+          }
+        }
+      } else {
+        const int i = floor(((mouse_x - 1) * page_limit) / (render.column_count - 2));
+        const int j = i + editor_page * page_limit;
+        
+        if (editor_page < unit_pages) {
+          editor_unit = j;
+        } else if (editor_page < unit_pages + extra_pages) {
+          editor_extra = j - unit_pages * page_limit;
+        } else if (editor_page < unit_pages + extra_pages + land_pages) {
+          editor_land = j - (unit_pages + extra_pages) * page_limit;
+        }
+      }
+      
+      return;
+    }
+    
+    if (tile_x >= 0 && tile_y >= 0 && tile_x < TRACK_WIDTH && tile_y < TRACK_HEIGHT) {
+      int mouse_unit = -1;
+      int mouse_extra = -1;
+      int mouse_land = -1;
+      
+      if (mouseButton == LEFTBUTTON) {
+        mouse_unit = editor_unit;
+        mouse_extra = editor_extra;
+        mouse_land = editor_land;
+      }
+      
+      int side = editor_side;
+      
+      if (editor_do_flip) {
+        side += 3;
+      }
+      
+      if (editor_page < unit_pages) {
+        units[tile_x + tile_y * TRACK_WIDTH].unit = mouse_unit;
+        units[tile_x + tile_y * TRACK_WIDTH].side = side;
+      } else if (editor_page < unit_pages + extra_pages) {
+        units[tile_x + tile_y * TRACK_WIDTH].extra = mouse_extra;
+        
+        if (units[tile_x + tile_y * TRACK_WIDTH].unit < 0) {
+          units[tile_x + tile_y * TRACK_WIDTH].side = side;
+        }
+      } else if (editor_page < unit_pages + extra_pages + land_pages) {
+        units[tile_x + tile_y * TRACK_WIDTH].land = mouse_land;
+      }
+      
+      return;
+    }
+  }
+}
+
+void editor_height_loop(double delta_ms) {
+  const int editor_point_xl = ((editor_point_x0 < editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zl = ((editor_point_z0 < editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  const int editor_point_xh = ((editor_point_x0 > editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zh = ((editor_point_z0 > editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  if (editor_point_xl >= 0 && editor_point_zl >= 0) {
+    for (int i = editor_point_zl; i <= editor_point_zh; i++) {
+      for (int j = editor_point_xl; j <= editor_point_xh; j++) {
+        double x = (j * 2 + i + editor_offset_x) * editor_scale + render.column_count * 0.5;
+        double y = (i * 2 + editor_offset_y) * editor_scale + render.line_count * 0.5;
+        
+        render.push_rect(round(x - 1), round(y - 1), 0.2, 3, 3, 85.0, 255.0, 255.0);
+      }
+    }
+  }
+  
+  double point_shift_x = mouse_x - editor_offset_x * editor_scale - render.column_count * 0.5;
+  double point_shift_y = mouse_y - editor_offset_y * editor_scale - render.line_count * 0.5;
+  
+  int point_x = round((point_shift_x - point_shift_y * 0.5) / (editor_scale * 2.0));
+  int point_y = round(point_shift_y / (editor_scale * 2.0));
+  
+  if (mousePressed) {
+    if (!p_mousePressed) {
+      editor_point_x0 = point_x;
+      editor_point_z0 = point_y;
+    }
+    
+    editor_point_x1 = point_x;
+    editor_point_z1 = point_y;
+  }
+}
+
+void editor_on_event(js_event_t event) {
+  if (editor_state == EDITOR_UNIT) {
+    editor_unit_on_event(event);
+  } else if (editor_state == EDITOR_HEIGHT) {
+    editor_height_on_event(event);
+  }
+  
+  if (event.name == "key_pressed") {
+    if (event.data_string[0] == "t") {
+      target_state = STATE_GAME;
+    }
+  }
+}
+
+void editor_unit_on_event(js_event_t event) {
+  if (event.name == "key_pressed") {
+    if (event.data_string[0] == "r") {
+      editor_side = (editor_side + 1) % 3;
+    }
+    
+    if (event.data_string[0] == "f") {
+      editor_do_flip = !editor_do_flip;
+    }
+  }
+}
+
+void editor_height_on_event(js_event_t event) {
+  const int editor_point_xl = ((editor_point_x0 < editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zl = ((editor_point_z0 < editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  const int editor_point_xh = ((editor_point_x0 > editor_point_x1) ? editor_point_x0 : editor_point_x1);
+  const int editor_point_zh = ((editor_point_z0 > editor_point_z1) ? editor_point_z0 : editor_point_z1);
+  
+  if (event.name == "key_pressed" && editor_point_xl >= 0 && editor_point_zl >= 0) {
+    for (int i = editor_point_zl; i <= editor_point_zh; i++) {
+      for (int j = editor_point_xl; j <= editor_point_xh; j++) {
+        if (event.data_string[0] == "r") {
+          heights[j + i * (TRACK_WIDTH / 2 + 1)]++;
+        }
+        
+        if (event.data_string[0] == "R") {
+          heights[j + i * (TRACK_WIDTH / 2 + 1)] += 5;
+        }
+        
+        if (event.data_string[0] == "f") {
+          heights[j + i * (TRACK_WIDTH / 2 + 1)]--;
+        }
+        
+        if (event.data_string[0] == "F") {
+          heights[j + i * (TRACK_WIDTH / 2 + 1)] -= 5;
+        }
+      }
+    }
+  }
+}
+
+// ^^^ s_editor.ij ^^^
+
+#endif

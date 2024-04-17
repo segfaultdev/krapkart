@@ -1,0 +1,81 @@
+#ifndef __PROFILE_IJ__
+#define __PROFILE_IJ__
+
+#ifndef PROFILE_NEXT_LIMIT
+#define PROFILE_NEXT_LIMIT 32
+#endif
+
+// === profile.ij ===
+
+class profile_t {
+  double times[];
+  String names[];
+  
+  int count;
+  
+  double save_times[];
+  String save_names[];
+  
+  int save_count;
+  
+  double prev_time;
+  
+  profile_t() {
+    this.times = new double[PROFILE_NEXT_LIMIT];
+    this.names = new String[PROFILE_NEXT_LIMIT];
+    
+    this.save_times = new double[PROFILE_NEXT_LIMIT];
+    this.save_names = new String[PROFILE_NEXT_LIMIT];
+  }
+  
+  void begin() {
+    this.prev_time = millis();
+    this.count = 0;
+  }
+  
+  void end() {
+    for (int i = 0; i < this.count; i++) {
+      this.save_times[i] = this.times[i];
+      this.save_names[i] = this.names[i];
+    }
+    
+    this.save_count = this.count;
+  }
+  
+  void next(String name) {
+    double time = millis();
+    
+    this.times[this.count] = time - this.prev_time;
+    this.names[this.count] = name;
+    
+    this.prev_time = time;
+    this.count++;
+  }
+  
+  double get_total() {
+    double total = 0.0;
+    
+    for (int i = 0; i < this.save_count; i++) {
+      total += this.save_times[i];
+    }
+    
+    return total;
+  }
+  
+  void show() {
+    double total = this.get_total();
+    
+    println("=== PROFILE (" + total + "ms) ===");
+    
+    for (int i = 0; i < this.save_count; i++) {
+      double percent = round((this.save_times[i] * 10000.0) / total) / 100.0;
+      println("- " + this.save_names[i] + ": " + this.save_times[i] + "ms, " + percent + "%");
+    }
+    
+    println();
+  }
+};
+
+// ^^^ profile.ij ^^^
+
+#endif

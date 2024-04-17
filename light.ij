@@ -1,0 +1,32 @@
+#ifndef __LIGHT_IJ__
+#define __LIGHT_IJ__
+
+#include <vector.ij>
+
+// === light.ij ===
+
+class light_t {
+  bool is_point;
+  
+  vector_t point;
+  double diffuse;
+  
+  double red;
+  double green;
+  double blue;
+  
+  light_t(bool is_point, vector_t point, double diffuse, double red, double green, double blue) {
+    this.is_point = is_point;
+    
+    this.point = point;
+    this.diffuse = diffuse;
+    
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+  }
+};
+
+// ^^^ light.ij ^^^
+
+#endif

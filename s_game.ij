@@ -1,0 +1,140 @@
+#ifndef __S_GAME_IJ__
+#define __S_GAME_IJ__
+
+#include <js_inject.ij>
+#include <player.ij>
+#include <render.ij>
+#include <light.ij>
+#include <scene.ij>
+
+#include <g_models.ij>
+
+#define CAMERA_NEAR  0
+#define CAMERA_EAGLE 1
+#define CAMERA_FIRST 2
+#define CAMERA_COUNT 3
+
+// === s_game.ij ===
+
+int camera_mode = CAMERA_NEAR;
+scene_t scene;
+
+player_t player;
+vector_t camera;
+
+double camera_angle;
+
+void game_init() {
+  scene = new scene_t(6000.0);
+  scene.init_viewport(0.0, 0.0, SCREEN_SIZE, SCREEN_SIZE);
+  
+  player = new player_t(new vector_t(0.0, 0.0, 0.0), scene, g_red_kart);
+  camera = new vector_t(0.0, 0.0, 0.0);
+  
+  camera_angle = 0.0;
+  
+  for (int i = 0; i < TRACK_HEIGHT; i++) {
+    for (int j = 0; j < TRACK_WIDTH; j++) {
+      double x = (i + j + 1) * TRACK_SCALE;
+      double z = (i * 2 + 1) * TRACK_SCALE;
+      
+      double h0;
+      double h1;
+      double h2;
+      
+      if (j % 2 > 0) {
+        h0 = heights[(j / 2 + 1) + (i) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+        h1 = heights[(j / 2) + (i + 1) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+        h2 = heights[(j / 2 + 1) + (i + 1) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+      } else {
+        h0 = heights[(j / 2) + (i + 1) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+        h1 = heights[(j / 2) + (i) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+        h2 = heights[(j / 2 + 1) + (i) * (TRACK_WIDTH / 2 + 1)] * 7.5;
+      }
+      
+      const unit_t unit = units[j + i * TRACK_WIDTH];
+      unit.load(scene, x, 0.0, z, h0, h1, h2, (j % 2) > 0);
+    }
+  }
+  
+  scene.push_object(new object_t(new vector_t(TRACK_WIDTH * TRACK_SCALE * 0.75, DECOR_Y * TRACK_SCALE, TRACK_HEIGHT * TRACK_SCALE), 0.0, 0.0, g_decor_01));
+  
+  scene.push_light(new light_t(false, new vector_t(0.8, -1.0, 0.6).normal(), 0.3, 1.0, 1.0, 1.0));
+}
+
+void game_loop(double delta_ms) {
+  vector_t target_camera;
+  double target_camera_angle;
+  
+  if (camera_mode == CAMERA_NEAR) {
+    target_camera = new vector_t(0.0, 5.0, -10.0);
+    target_camera_angle = 0.0;
+  }
+  
+  if (camera_mode == CAMERA_EAGLE) {
+    target_camera = new vector_t(0.0, 25.0, -5.0);
+    target_camera_angle = -PI / 3.0;
+  }
+  
+  if (camera_mode == CAMERA_FIRST) {
+    target_camera = new vector_t(0.0, 1.0, -0.2);
+    target_camera_angle = 0.0;
+  }
+  
+  camera = camera.add(target_camera.subtract(camera).multiply(1.0 - pow(0.1, delta_ms / 1000.0)));
+  camera_angle = camera_angle + (target_camera_angle - camera_angle) * (1.0 - pow(0.1, delta_ms / 1000.0));
+  
+  player.update(delta_ms, scene);
+  profile.next("[s_game] player.update()");
+  
+  scene.load_faces(player.point.add(camera.rotate_xy(player.angle_x, player.angle_y)), camera_angle - player.angle_x, -player.angle_y);
+  profile.next("[s_game] scene.load_faces()");
+  
+  scene.draw_faces(render);
+  profile.next("[s_game] scene.draw_faces()");
+  
+  String speed = "" + round(abs(player.speed) * 1.25);
+  
+  while (speed.length() < 3) {
+    speed = "0" + speed;
+  }
+  
+  font.text_shadow(render, speed, 7, render.line_count - 15, R(1), 2, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "KM/H", 37, render.line_count - 12, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+}
+
+void game_on_event(js_event_t event) {
+  if (event.name == "key_pressed") {
+    if (event.data_string[0] == "a") {
+      player.inputs[INPUT_TURN_L]++;
+    } else if (event.data_string[0] == "d") {
+      player.inputs[INPUT_TURN_R]++;
+    } else if (event.data_string[0] == "w" || event.data_string[0] == ",") {
+      player.inputs[INPUT_ACCELERATE]++;
+    } else if (event.data_string[0] == "s" || event.data_string[0] == ".") {
+      player.inputs[INPUT_BRAKE]++;
+    }
+    
+    if (event.data_string[0] == "-") {
+      camera_mode = (camera_mode + 1) % CAMERA_COUNT;
+    }
+    
+    if (event.data_string[0] == "t") {
+      target_state = STATE_EDITOR;
+    }
+  } else if (event.name == "key_released") {
+    if (event.data_string[0] == "a") {
+      player.inputs[INPUT_TURN_L]--;
+    } else if (event.data_string[0] == "d") {
+      player.inputs[INPUT_TURN_R]--;
+    } else if (event.data_string[0] == "w" || event.data_string[0] == ",") {
+      player.inputs[INPUT_ACCELERATE]--;
+    } else if (event.data_string[0] == "s" || event.data_string[0] == ".") {
+      player.inputs[INPUT_BRAKE]--;
+    }
+  }
+}
+
+// ^^^ s_game.ij ^^^
+
+#endif

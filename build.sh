@@ -3,8 +3,22 @@
 set -e
 
 cd tools
-  gcc stl_parse.c -o stl_parse
+  gcc b64_parse.c -o b64_parse
   gcc js_stringify.c -o js_stringify
+  gcc png_parse.c -lm -Iinclude -o png_parse
+  gcc stl_parse.c -o stl_parse
+cd ..
+
+cd base_64
+  ../tools/b64_parse $(find . -type f) > ../g_base_64.ij
+cd ..
+
+cd fonts
+  ../tools/png_parse f $(find . -name "*.png") > ../g_fonts.ij
+cd ..
+
+cd images
+  ../tools/png_parse i $(find . -name "*.png") > ../g_images.ij
 cd ..
 
 cd models

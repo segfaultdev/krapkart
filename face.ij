@@ -16,6 +16,10 @@ class face_t {
   
   vector_t normal;
   
+  face_t() {
+    ;
+  }
+  
   face_t(double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
     this.red = red;
     this.green = green;

@@ -3,26 +3,184 @@
 
 #include <vector.ij>
 
-// === player.ij ===
+#define INPUT_TURN_L     0
+#define INPUT_TURN_R     1
+#define INPUT_ACCELERATE 2
+#define INPUT_BRAKE      3
+#define INPUT_COUNT      4
 
-#define BUTTON_UP    0
-#define BUTTON_DOWN  1
-#define BUTTON_LEFT  2
-#define BUTTON_RIGHT 3
+// Wheel angle soft limit (rad):
+#define PLAYER_WHEEL_ANGLE_L 0.2
+
+// Wheel angle turn rate (rad/s):
+#define PLAYER_WHEEL_ANGLE_S 0.1
+
+// Wheel angle back rate (rad/s):
+#define PLAYER_WHEEL_ANGLE_R 1.0
+
+// Speed hard limit (m/s):
+#define PLAYER_SPEED_H 200.0
+
+// Speed soft limit (m/s):
+#define PLAYER_SPEED_L 160.0
+
+// Accelerate rate (m/s²):
+#define PLAYER_ACCELERATE 70.0
+
+// Brake rate (m/s²):
+#define PLAYER_BRAKE 100.0
+
+// Reverse rate (m/s²):
+#define PLAYER_REVERSE 20.0
+
+// Active friction rate (%/s):
+#define PLAYER_FRICTION_A 0.6
+
+// Inactive friction rate (%/s):
+#define PLAYER_FRICTION_I 0.3
+
+// === player.ij ===
 
 class player_t {
   vector_t point;
-  double angle;
   
-  int index;
+  double angle_x;
+  double angle_y;
   
-  bool buttons[];
+  double wheel_movement;
+  double wheel_angle;
   
-  player_t(vector_t point, int index) {
+  double speed;
+  
+  int kart_index;
+  int wheel_index[];
+  
+  int inputs[];
+  
+  player_t(vector_t point, scene_t scene, face_t kart_model[]) {
     this.point = point;
-    this.angle = 0.0;
     
-    this.index = index;
+    this.angle_x = 0.0;
+    this.angle_y = 0.0;
+    
+    this.wheel_angle = 0.0;
+    
+    object_t kart_object = new object_t(point, 0.0, 0.0, kart_model);
+    this.kart_index = scene.push_object(kart_object);
+    
+    this.wheel_index = new int[4];
+    
+    for (int i = 0; i < 4; i++) {
+      object_t wheel_object = new object_t(point, 0.0, 0.0, g_wheel);
+      this.wheel_index[i] = scene.push_object(wheel_object);
+    }
+    
+    this.inputs = new int[INPUT_COUNT];
+    
+    for (int i = 0; i < INPUT_COUNT; i++) {
+      this.inputs[i] = 0;
+    }
+  }
+  
+  void update(double delta_ms, scene_t scene) {
+    int turn_sum = 0;
+    
+    if (this.inputs[INPUT_TURN_L] > 0) {
+      this.wheel_angle -= PLAYER_WHEEL_ANGLE_S * (delta_ms / 1000.0);
+      turn_sum--;
+    }
+    
+    if (this.inputs[INPUT_TURN_R] > 0) {
+      this.wheel_angle += PLAYER_WHEEL_ANGLE_S * (delta_ms / 1000.0);
+      turn_sum++;
+    }
+    
+    if (turn_sum == 0) {
+      const double delta_angle = PLAYER_WHEEL_ANGLE_R * (delta_ms / 1000.0);
+      
+      if (this.wheel_angle > delta_angle) {
+        this.wheel_angle -= delta_angle;
+      } else if (this.wheel_angle < -delta_angle) {
+        this.wheel_angle += delta_angle;
+      } else {
+        this.wheel_angle = 0.0;
+      }
+    }
+    
+    if (this.wheel_angle < -PLAYER_WHEEL_ANGLE_L) {
+      this.wheel_angle = -PLAYER_WHEEL_ANGLE_L;
+    }
+    
+    if (this.wheel_angle > PLAYER_WHEEL_ANGLE_L) {
+      this.wheel_angle = PLAYER_WHEEL_ANGLE_L;
+    }
+    
+    if (this.inputs[INPUT_ACCELERATE] > 0 || this.inputs[INPUT_BRAKE] > 0) {
+      this.speed *= pow(PLAYER_FRICTION_A, delta_ms / 1000.0);
+    } else {
+      this.speed *= pow(PLAYER_FRICTION_I, delta_ms / 1000.0);
+    }
+    
+    if (this.inputs[INPUT_ACCELERATE] > 0) {
+      if (this.speed < PLAYER_SPEED_L) {
+        this.speed += PLAYER_ACCELERATE * (delta_ms / 1000.0);
+      }
+    }
+    
+    if (this.inputs[INPUT_BRAKE] > 0) {
+      if (this.speed <= 0.0) {
+        if (this.speed > -PLAYER_SPEED_L) {
+          this.speed -= PLAYER_REVERSE * (delta_ms / 1000.0);
+        }
+      } else {
+        this.speed -= PLAYER_BRAKE * (delta_ms / 1000.0);
+      }
+    }
+    
+    if (this.speed < -PLAYER_SPEED_H) {
+      this.speed = -PLAYER_SPEED_H;
+    }
+    
+    if (this.speed > PLAYER_SPEED_H) {
+      this.speed = PLAYER_SPEED_H;
+    }
+    
+    const double axle_length = 3.0 * cos(this.wheel_angle * 0.5);
+    const double move_length = this.speed * (delta_ms / 1000.0);
+    
+    this.point = this.point.add(new vector_t(0.0, 0.0, 1.0).rotate_y(this.angle_y).multiply(move_length));
+    this.angle_y -= this.wheel_angle * (move_length / axle_length);
+    
+    scene.objects[this.kart_index].point = this.point;
+    
+    scene.objects[this.kart_index].angle_x = this.angle_x;
+    scene.objects[this.kart_index].angle_y = this.angle_y;
+    
+    for (int i = 0; i < 4; i++) {
+      vector_t point = new vector_t(0.0, 0.25, 0.0);
+      
+      if (i % 2 == 0) {
+        point.x += 1.75;
+      } else {
+        point.x -= 1.75;
+      }
+      
+      if (i / 2 == 0) {
+        point.x *= 0.5;
+        point.z += 1.5;
+      } else {
+        point.z -= 1.5;
+      }
+      
+      scene.objects[this.wheel_index[i]].point = point.rotate_cylinder(this.angle_x, this.angle_y).add(this.point);
+      
+      scene.objects[this.wheel_index[i]].angle_x = this.angle_x + this.wheel_movement;
+      scene.objects[this.wheel_index[i]].angle_y = this.angle_y;
+      
+      if (i / 2 == 0) {
+        scene.objects[this.wheel_index[i]].angle_y -= this.wheel_angle;
+      }
+    }
   }
 };
 

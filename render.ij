@@ -1,9 +1,16 @@
 #ifndef __RENDER_IJ__
 #define __RENDER_IJ__
 
+#include <render.ij>
+
 #ifndef RENDER_SPAN_LIMIT
-#define RENDER_SPAN_LIMIT 256
+#define RENDER_SPAN_LIMIT 2048
 #endif
+
+#define R(i) (0.1 / (i))
+
+#define R_NEXT(i) (R(R(i) + 1.0))
+#define R_LAST(i) (R(R(i) - 1.0))
 
 // === render.ij ===
 
@@ -12,6 +19,20 @@
 // This is purely a tribute to Quake's software renderer. It uses the
 // exact same techniques for triangle rasterizing and span rendering.
 // Here is a video explaining them: https://youtu.be/zdXsHWHxeBY?t=222
+
+// NOTE (26/03/2024): This is just *painful*, I fail to figure out how
+// to fix this damn thing!
+
+// NOTE (26/03/2024): Nah, I just decided to approximate it and tweak
+// the parameter until it works just well enough, I hope no one ever
+// notices...
+
+// NOTE (27/03/2024): Also, forgot to change a floor() to ceil(), now
+// all the triangles look friggin' pixel perfect.
+
+// NOTE (28/03/2024): I believe this to be the most complex yet most
+// optimized piece of code I have ever written, and it is not that
+// long, actually.
 
 class r_span_t {
   bool active;
@@ -25,6 +46,10 @@ class r_span_t {
   double red;
   double green;
   double blue;
+  
+  r_span_t() {
+    ;
+  }
   
   r_span_t(int x0, double z0, int x1, double z1, double red, double green, double blue) {
     this.active = false;
@@ -40,12 +65,26 @@ class r_span_t {
     this.blue = blue;
   }
   
-  double get_depth(int x) {
+  void apply(int x0, double z0, int x1, double z1, double red, double green, double blue) {
+    this.active = false;
+    
+    this.x0 = x0;
+    this.z0 = z0;
+    
+    this.x1 = x1;
+    this.z1 = z1;
+    
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+  }
+  
+  double get_depth(double x) {
     if (this.x0 == this.x1) {
       return (this.z0 + this.z1) * 0.5;
     }
     
-    double lerp = (x - this.x0 + 0.0) / (this.x1 - this.x0);
+    double lerp = (x - this.x0) / (this.x1 - this.x0);
     
     double i0 = 1.0 / this.z0;
     double i1 = 1.0 / this.z1;
@@ -55,96 +94,109 @@ class r_span_t {
 };
 
 class r_edge_t {
-  int x;
-  int index;
+  int span_index;
+  int next_index;
   
-  r_edge_t(int x, int index) {
-    this.x = x;
-    this.index = index;
+  r_edge_t() {
+    ;
+  }
+  
+  r_edge_t(int span_index, int next_index) {
+    this.span_index = span_index;
+    this.next_index = next_index;
+  }
+  
+  void apply(int span_index, int next_index) {
+    this.span_index = span_index;
+    this.next_index = next_index;
   }
 };
 
 class render_t {
-  double x;
-  double y;
+  int x;
+  int y;
   
-  double scale;
+  int scale;
   
   r_span_t spans[];
   int span_count;
   
   r_edge_t edges[];
-  int edge_count[];
+  int edge_count;
   
+  int line_first[];
+  
+  int column_count;
   int line_count;
   
   int actives[];
   int active_count;
   
-  render_t(double x, double y, double scale, int line_count) {
+  render_t(int x, int y, int scale, int column_count, int line_count) {
     this.x = x;
     this.y = y;
     
     this.scale = scale;
     
-    this.spans = new r_span_t[line_count * RENDER_SPAN_LIMIT];
+    this.spans = new r_span_t[RENDER_SPAN_LIMIT * line_count];
+    this.edges = new r_edge_t[RENDER_SPAN_LIMIT * line_count * 2];
     
-    this.edges = new r_edge_t[line_count * RENDER_SPAN_LIMIT * 2];
-    this.edge_count = new int[line_count];
+    for (int i = 0; i < RENDER_SPAN_LIMIT * line_count; i++) {
+      this.spans[i] = new r_span_t();
+    }
     
+    for (int i = 0; i < RENDER_SPAN_LIMIT * line_count * 2; i++) {
+      this.edges[i] = new r_edge_t();
+    }
+    
+    this.line_first = new int[(column_count + 1) * line_count];
+    
+    this.column_count = column_count;
     this.line_count = line_count;
     
     this.actives = new int[RENDER_SPAN_LIMIT];
     this.active_count = 0;
   }
   
-  void e_sift_up(int y, int i) {
-    if (i == 0) {
+  void a_validate(int x, int i) {
+    if (i >= this.active_count) {
       return;
     }
     
-    int j = (i - 1) / 2;
-    
-    const r_edge_t edge_i = this.edges[i + y * RENDER_SPAN_LIMIT * 2];
-    const r_edge_t edge_j = this.edges[j + y * RENDER_SPAN_LIMIT * 2];
-    
-    if (edge_j.x <= edge_i.x) {
+    if (this.spans[this.actives[i]].active) {
+      this.a_validate(x, i * 2 + 1);
+      this.a_validate(x, i * 2 + 2);
+      
       return;
     }
     
-    this.edges[i + y * RENDER_SPAN_LIMIT * 2] = edge_j;
-    this.edges[j + y * RENDER_SPAN_LIMIT * 2] = edge_i;
+    this.active_count--;
     
-    this.e_sift_up(y, j);
+    this.actives[i] = this.actives[this.active_count];
+    this.a_sift_down(x, i);
+    
+    this.a_validate(x, i);
   }
   
-  void e_sift_down(int y, int i) {
-    int l = (i * 2) + 1;
-    int r = (i * 2) + 2;
+  bool a_compare(int x, int i, int j) {
+    const r_span_t a = this.spans[i];
+    const r_span_t b = this.spans[j];
     
-    const r_edge_t edge_i = this.edges[i + y * RENDER_SPAN_LIMIT * 2];
+    int d = 1;
     
-    r_edge_t edge_j = edge_i;
-    int j = i;
-    
-    if (l < this.edge_count[y] && this.edges[l + y * RENDER_SPAN_LIMIT * 2].x < edge_j.x) {
-      edge_j = this.edges[l + y * RENDER_SPAN_LIMIT * 2];
-      j = l;
+    for (int k = 0; k < 8; k++) {
+      double a_depth = a.get_depth((x + d) - 1);
+      double b_depth = b.get_depth((x + d) - 1);
+      
+      if (abs(a_depth - b_depth) <= 0.001) {
+        d = d * 2;
+        continue;
+      }
+      
+      return (a_depth < b_depth);
     }
     
-    if (r < this.edge_count[y] && this.edges[r + y * RENDER_SPAN_LIMIT * 2].x < edge_j.x) {
-      edge_j = this.edges[r + y * RENDER_SPAN_LIMIT * 2];
-      j = r;
-    }
-    
-    if (i == j) {
-      return;
-    }
-    
-    this.edges[i + y * RENDER_SPAN_LIMIT * 2] = edge_j;
-    this.edges[j + y * RENDER_SPAN_LIMIT * 2] = edge_i;
-    
-    this.e_sift_down(y, j);
+    return true;
   }
   
   void a_sift_up(int x, int i) {
@@ -152,12 +204,12 @@ class render_t {
       return;
     }
     
-    int j = (i - 1) / 2;
+    const int j = (i - 1) / 2;
     
     const int index_i = this.actives[i];
     const int index_j = this.actives[j];
     
-    if (this.spans[index_j].get_depth(x) <= this.spans[index_i].get_depth(x)) {
+    if (this.a_compare(x, index_j, index_i)) {
       return;
     }
     
@@ -168,20 +220,20 @@ class render_t {
   }
   
   void a_sift_down(int x, int i) {
-    int l = (i * 2) + 1;
-    int r = (i * 2) + 2;
+    const int l = (i * 2) + 1;
+    const int r = (i * 2) + 2;
     
     const int index_i = this.actives[i];
     
     int index_j = index_i;
     int j = i;
     
-    if (l < this.active_count && this.spans[this.actives[l]].get_depth(x) < this.spans[index_j].get_depth(x)) {
+    if (l < this.active_count && this.a_compare(x, this.actives[l], index_j)) {
       index_j = this.actives[l];
       j = l;
     }
     
-    if (r < this.active_count && this.spans[this.actives[r]].get_depth(x) < this.spans[index_j].get_depth(x)) {
+    if (r < this.active_count && this.a_compare(x, this.actives[r], index_j)) {
       index_j = this.actives[r];
       j = r;
     }
@@ -198,37 +250,61 @@ class render_t {
   
   void init_frame() {
     this.span_count = 0;
+    this.edge_count = 0;
     
-    for (int i = 0; i < this.line_count; i++) {
-      this.edge_count[i] = 0;
+    for (int i = 0; i < (this.column_count + 1) * this.line_count; i++) {
+      this.line_first[i] = -1;
     }
   }
   
   void push_span(int y, int x0, double z0, int x1, double z1, double red, double green, double blue) {
+    if (x1 < 0 || x0 >= this.column_count) {
+      return;
+    }
+    
     if (y < 0 || y >= this.line_count) {
       return;
     }
     
-    int index = this.span_count;
-    
-    this.spans[index] = new r_span_t(x0, z0, x1, z1, red, green, blue);
+    const int index = this.span_count;
     this.span_count++;
     
-    this.edges[this.edge_count[y] + y * RENDER_SPAN_LIMIT * 2] = new r_edge_t(x0, index);
-    this.e_sift_up(y, this.edge_count[y]);
-    this.edge_count[y]++;
+    this.spans[index].apply(x0, z0, x1, z1, red, green, blue);
     
-    this.edges[this.edge_count[y] + y * RENDER_SPAN_LIMIT * 2] = new r_edge_t(x1, index);
-    this.e_sift_up(y, this.edge_count[y]);
-    this.edge_count[y]++;
+    if (x0 < 0) {
+      x0 = 0;
+    }
+    
+    if (x1 > this.column_count) {
+      x1 = this.column_count;
+    }
+    
+    // debugger();
+    
+    const int edge_x0 = this.edge_count;
+    this.edge_count++;
+    
+    this.edges[edge_x0].apply(index, this.line_first[x0 + (this.column_count + 1) * y]);
+    this.line_first[x0 + (this.column_count + 1) * y] = edge_x0;
+    
+    const int edge_x1 = this.edge_count;
+    this.edge_count++;
+    
+    this.edges[edge_x1].apply(index, this.line_first[x1 + (this.column_count + 1) * y]);
+    this.line_first[x1 + (this.column_count + 1) * y] = edge_x1;
   }
   
   void push_top(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
-    double slope_x0 = (x2 - x0 + 0.0) / (y2 - y0);
-    double slope_x1 = (x2 - x1 + 0.0) / (y2 - y1);
+    if (x0 > x1) {
+      this.push_top(x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
+      return;
+    }
     
-    double slope_z0 = (z2 - z0) / (y2 - y0);
-    double slope_z1 = (z2 - z1) / (y2 - y1);
+    const double slope_x0 = (x2 - x0 + 0.0) / (y2 - y0);
+    const double slope_x1 = (x2 - x1 + 0.0) / (y2 - y1);
+    
+    const double slope_z0 = (z2 - z0) / (y2 - y0);
+    const double slope_z1 = (z2 - z1) / (y2 - y1);
     
     double curr_x0 = x2;
     double curr_x1 = x2;
@@ -236,13 +312,8 @@ class render_t {
     double curr_z0 = z2;
     double curr_z1 = z2;
     
-    if (x0 > x1) {
-      this.push_top(x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
-      return;
-    }
-    
     for (int scan_y = y2; scan_y >= y0; scan_y--) {
-      this.push_span(scan_y, floor(curr_x0), curr_z0, floor(curr_x1), curr_z1, red, green, blue);
+      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
       
       curr_x0 -= slope_x0;
       curr_x1 -= slope_x1;
@@ -253,11 +324,16 @@ class render_t {
   }
   
   void push_bottom(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
-    double slope_x0 = (x1 - x0 + 0.0) / (y1 - y0);
-    double slope_x1 = (x2 - x0 + 0.0) / (y2 - y0);
+    if (x1 > x2) {
+      this.push_bottom(x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
+      return;
+    }
     
-    double slope_z0 = (z1 - z0) / (y1 - y0);
-    double slope_z1 = (z2 - z0) / (y2 - y0);
+    const double slope_x0 = (x1 - x0 + 0.0) / (y1 - y0);
+    const double slope_x1 = (x2 - x0 + 0.0) / (y2 - y0);
+    
+    const double slope_z0 = (z1 - z0) / (y1 - y0);
+    const double slope_z1 = (z2 - z0) / (y2 - y0);
     
     double curr_x0 = x0;
     double curr_x1 = x0;
@@ -265,13 +341,8 @@ class render_t {
     double curr_z0 = z0;
     double curr_z1 = z0;
     
-    if (x1 > x2) {
-      this.push_bottom(x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
-      return;
-    }
-    
     for (int scan_y = y0; scan_y <= y1; scan_y++) {
-      this.push_span(scan_y, floor(curr_x0), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
       
       curr_x0 += slope_x0;
       curr_x1 += slope_x1;
@@ -283,9 +354,9 @@ class render_t {
     
   void push_triangle(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (y0 > y1) {
-      int tx = x0;
-      int ty = y0;
-      double tz = z0;
+      const int tx = x0;
+      const int ty = y0;
+      const double tz = z0;
       
       x0 = x1;
       y0 = y1;
@@ -297,9 +368,9 @@ class render_t {
     }
     
     if (y1 > y2) {
-      int tx = x1;
-      int ty = y1;
-      double tz = z1;
+      const int tx = x1;
+      const int ty = y1;
+      const double tz = z1;
       
       x1 = x2;
       y1 = y2;
@@ -311,9 +382,9 @@ class render_t {
     }
     
     if (y0 > y1) {
-      int tx = x0;
-      int ty = y0;
-      double tz = z0;
+      const int tx = x0;
+      const int ty = y0;
+      const double tz = z0;
       
       x0 = x1;
       y0 = y1;
@@ -329,77 +400,85 @@ class render_t {
     } else if (y0 == y1) {
       this.push_top(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
     } else {
-      double delta_1 = y1 - y0;
-      double delta_2 = y2 - y0;
+      const double delta_1 = y1 - y0;
+      const double delta_2 = y2 - y0;
       
-      int x3 = ceil((x0 + (delta_1 / delta_2) * (x2 - x0)));
-      double z3 = (z0 + (delta_1 / delta_2) * (z2 - z0));
+      const int x3 = ceil((x0 + (delta_1 / delta_2) * (x2 - x0)));
+      const double z3 = (z0 + (delta_1 / delta_2) * (z2 - z0));
       
       this.push_bottom(x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
       this.push_top(x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
     }
   }
   
-  void draw_line(int y) {
+  void push_rect(int x, int y, double z, int width, int height, double red, double green, double blue) {
+    for (int i = 0; i < height; i++) {
+      this.push_span(y + i, x, z, x + width, z, red, green, blue);
+    }
+  }
+  
+  void draw_single(int y) {
+    int sy = (y * this.scale) / this.line_count;
+    int ey = ((y + 1) * this.scale) / this.line_count;
+    
     this.active_count = 0;
     int x = 0;
     
-    while (this.edge_count[y] > 0) {
-      r_edge_t edge = this.edges[y * RENDER_SPAN_LIMIT * 2];
+    int draw_index = -1;
+    int draw_x = 0;
+    
+    while (x <= this.column_count) {
+      int edge_index = this.line_first[x + (this.column_count + 1) * y];
+      bool need_validate = false;
       
-      while (this.edge_count[y] > 0 && x >= edge.x) {
-        this.edge_count[y]--;
+      while (edge_index >= 0) {
+        const r_edge_t edge = this.edges[edge_index];
         
-        this.edges[y * RENDER_SPAN_LIMIT * 2] = this.edges[this.edge_count[y] + y * RENDER_SPAN_LIMIT * 2];
-        this.e_sift_down(y, 0);
-        
-        if (this.spans[edge.index].active) {
-          this.spans[edge.index].active = false;
+        if (this.spans[edge.span_index].active) {
+          this.spans[edge.span_index].active = false;
+          need_validate = true;
         } else {
-          this.actives[this.active_count] = edge.index;
+          this.actives[this.active_count] = edge.span_index;
           this.a_sift_up(x, this.active_count);
           this.active_count++;
           
-          this.spans[edge.index].active = true;
+          this.spans[edge.span_index].active = true;
         }
         
-        edge = this.edges[y * RENDER_SPAN_LIMIT * 2];
+        edge_index = edge.next_index;
+      }
+      
+      if (need_validate) {
+        this.a_validate(x, 0);
       }
       
       int index = -1;
       
-      while (this.active_count > 0) {
-        if (this.spans[this.actives[0]].active) {
-          index = this.actives[0];
-          break;
+      if (this.active_count > 0) {
+        index = this.actives[0];
+      }
+      
+      if (draw_index != index) {
+        if (draw_index >= 0) {
+          const r_span_t span = this.spans[draw_index];
+          
+          int sx = (draw_x * this.scale) / this.column_count;
+          int ex = (x * this.scale) / this.column_count;
+          
+          rect_color(sx, sy, ex - sx, ey - sy, span.red, span.green, span.blue);
         }
         
-        this.active_count--;
-        
-        this.actives[0] = this.actives[this.active_count];
-        this.a_sift_down(x, 0);
+        draw_index = index;
+        draw_x = x;
       }
       
-      if (index >= 0) {
-        const r_span_t span = this.spans[index];
-        
-        int sx = (int)(x * this.scale + this.x);
-        int sy = (int)(y * this.scale + this.y);
-        
-        int ex = (int)(edge.x * this.scale + this.x);
-        int ey = (int)((y + 1) * this.scale + this.y);
-        
-        fill(span.red, span.green, span.blue);
-        rect(sx, sy, ex - sx, ey - sy);
-      }
-      
-      x = edge.x;
+      x++;
     }
   }
   
-  void draw_frame() {
+  void draw_lines() {
     for (int i = 0; i < this.line_count; i++) {
-      this.draw_line(i);
+      this.draw_single(i);
     }
   }
 };

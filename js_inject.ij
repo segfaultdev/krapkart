@@ -6,6 +6,7 @@
 #endif
 
 #include <g_scripts.ij>
+#include <g_base_64.ij>
 
 // === js_inject.ij ===
 
@@ -17,27 +18,40 @@ class js_event_t {
   
   js_event_t() {
     ;
+  }
+  
+  js_event_t(String name) {
+    this.name = name;
+    
+    this.data_string = null;
+    this.data_double = null;
+  };
+  
+  js_event_t(String name, String s0) {
+    this.name = name;
+    
+    this.data_string = new String[1];
+    this.data_double = null;
+    
+    this.data_string[0] = s0;
+  };
+  
+  js_event_t(String name, double d0) {
+    this.name = name;
+    
+    this.data_string = new String[1];
+    this.data_double = new double[1];
+    
+    this.data_string[0] = "" + d0;
+    this.data_double[0] = d0;
   };
 };
 
-class js_canvas_t {
-  js_canvas_t() {
-    ;
-  }
-  
-  void rect(double x, double y, double width, double height) {
-    ;
-  }
-};
-
 class js_t {
-  js_event_t event_queue[];
-  
-  int event_head;
-  int event_tail;
-  
   int main;
   int on_event;
+  
+  bool do_exit;
   
   js_t() {
     ;
@@ -51,6 +65,10 @@ class js_t {
     eval_raw(string_to_array(code)[string_to_int("__data")]);
   }
   
+  void rect_color(double x, double y, double width, double height, double red, double green, double blue) {
+    ;
+  }
+  
   void loader() {
     char dummy[] = {' '};
     char array[] = (true ? js : js) ? dummy : dummy;
@@ -62,9 +80,12 @@ class js_t {
     String this_str = (true ? new_array : new_array) ? "" : "";
     
     array[string_to_int("__eval_raw__0")] = this_str.charAt(string_to_int("eval"));
+    array[string_to_int("__rect_color__0")] = this_str.charAt(string_to_int("rect_color"));
     
     this.main = (true ? main_js : main_js) ? 0 : 0;
     this.on_event = (true ? on_event_js : on_event_js) ? 0 : 0;
+    
+    this.do_exit = true;
     
     js.eval(
       "if (window.js_inject_successful) {" +
@@ -76,7 +97,7 @@ class js_t {
       "    });" +
       "  };" +
       "  " +
-      "  window.js_inject_successful = false;" +
+      "  window.__do_exit = false;" +
       "  window.__main();" +
       "} else {" +
       "  let ijava2javascript_script = document.createElement(\"script\");" +
@@ -88,32 +109,37 @@ class js_t {
       "  document.body.append(ijava2javascript_script);" +
       "  document.body.append(custom_script);" +
       "  " +
-      "  setTimeout(function() {" +
-      "    document.getElementById('buttonRun').click();" +
-      "    window.js_inject_successful = true;" +
-      "  }, 1000);" +
-      "  " +
-      "  document.getElementById('buttonRun').click();" +
+      // "  window.background_01 = new Image();" +
+      // "  window.background_01.onload = function() {" +
+      // "    window.background_02 = new Image();" +
+      // "    window.background_02.onload = function() {" +
+      "      setTimeout(function() {" +
+      "        window.js_inject_successful = true;" +
+      "        document.getElementById(\"buttonRun\").click();" +
+      "      }, 1024);" +
+      // "    };" +
+      // "    " +
+      // "    window.background_02.src = \"data:image/png;base64," + g_background_02_png + "\";" +
+      // "  };" +
+      // "  " +
+      // "  window.background_01.src = \"data:image/png;base64," + g_background_01_png + "\";" +
       "}"
     );
     
-    char context = this_str.charAt(string_to_int("context"));
-    canvas = (true ? context : context) ? canvas : canvas;
-    
-    array = (true ? canvas : canvas) ? dummy : dummy;
-    array[string_to_int("__rect__0")] = array[string_to_int("fillRect")];
+    if (this.do_exit) {
+      exit();
+    }
   }
   
   void lock_mouse() {
-    js.eval("window.my_canvas.requestPointerLock({unadjustedMovement: true});");
+    js.eval("if (!window.mouse_locked) window.my_canvas.requestPointerLock({unadjustedMovement: true});");
   }
   
   void unlock_mouse() {
-    js.eval("document.exitPointerLock();");
+    js.eval("if (window.mouse_locked) document.exitPointerLock();");
   }
 };
 
-js_canvas_t canvas = new js_canvas_t();
 js_t js = new js_t();
 
 int[] int_to_array(int x) {
@@ -134,18 +160,42 @@ double string_to_double(String x) {
   return (true ? x : x) ? 0.0 : 0.0;
 }
 
+void debugger() {
+  ;
+}
+
 void main() {
   int dummy[] = {0};
   int array[] = (true ? js : js) ? dummy : dummy;
   
   int func = array[string_to_int("__loader__0")];
-  animate((true ? func : func) ? main : main, 100);
+  animate((true ? func : func) ? main : main, 256);
+}
+
+void onKeyPressed(String key) {
+  String _key = key;
+  
+  if (_key == "\"" || _key == "\\") {
+    _key = "\\" + _key;
+  }
+  
+  js.eval("window.send_event(\"key_pressed\", [\"" + _key + "\"]);");
+}
+
+void onKeyReleased(String key) {
+  String _key = key;
+  
+  if (_key == "\"" || _key == "\\") {
+    _key = "\\" + _key;
+  }
+  
+  js.eval("window.send_event(\"key_released\", [\"" + _key + "\"]);");
 }
 
 #define main(...) main_js(__VA_ARGS__)
 #define on_event(...) on_event_js(__VA_ARGS__)
 
-#define rect(...) canvas.rect(__VA_ARGS__)
+#define rect_color(...) js.rect_color(__VA_ARGS__)
 
 // ^^^ js_inject.ij ^^^
 

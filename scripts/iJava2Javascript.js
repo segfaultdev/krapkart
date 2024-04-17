@@ -10,7 +10,7 @@ window.iJava2Javascript = function(tree) {
     deep = 0;
     rContext = [];
     
-    let translation = translate(tree);
+    let translation = "runtime = {findMostCalledFunction: function() {return null;}}; " + translate(tree);
     
     console.log(translation);
     return translation;
@@ -382,7 +382,11 @@ window.iJava2Javascript = function(tree) {
           var theclassid = "__" + node.scope.context.id;
           s = s + theclassid + ".prototype.";
         } else {
-          s = s + "var ";
+          if (node.type === "constant") {
+            s = s + "const ";
+          } else {
+            s = s + "var ";
+          }
         }
         s = s + "__";
         if (node.id === "(Constructor)") {
@@ -490,6 +494,18 @@ window.iJava2Javascript = function(tree) {
   function call(node, context) {
     var s = "";
     s = s + translate(node.left, context);
+    
+    let math_functions = ["ceil", "round", "sin", "cos", "tan", "asin", "acos", "atan", "sqrt", "abs", "log", "pow"];
+    let name = s;
+    
+    if (name == "__debugger") {
+      return "debugger";
+    } else if (name == "floor") {
+      s = "(";
+    } else if (math_functions.indexOf(name) >= 0) {
+      s = "Math." + name;
+    }
+    
     s = s + "(";
     var i = 0;
     for ( i = 0 ; i < node.args.length-1 ; i++ ) {
@@ -498,6 +514,11 @@ window.iJava2Javascript = function(tree) {
     }
     if ( node.args.length > 0) s = s + translate(node.args[i], context);
     s = s + ")";
+    
+    if (name == "floor") {
+      s = s + " | 0)";
+    }
+    
     return s;
   }
   

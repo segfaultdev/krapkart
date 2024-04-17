@@ -47,6 +47,39 @@ class vector_t {
     return new vector_t(this.y * vector.z - this.z * vector.y, this.z * vector.x - this.x * vector.z, this.x * vector.y - this.y * vector.x);
   }
   
+  vector_t rotate_xy(double angle_x, double angle_y) {
+    double Cx = cos(angle_x);
+    double Sx = sin(angle_x);
+    
+    double Cy = cos(angle_y);
+    double Sy = sin(angle_y);
+    
+    double x = this.x * Cy - this.z * Sy;
+    double z = this.x * Sy + this.z * Cy;
+    
+    double a = this.y * Cx - z * Sx;
+    double b = this.y * Sx + z * Cx;
+    
+    return new vector_t(x, a, b);
+  }
+  
+  vector_t rotate_cylinder(double angle_x, double angle_y) {
+    double Cx = cos(angle_x);
+    double Sx = sin(angle_x);
+    
+    double Cy = cos(angle_y);
+    double Sy = sin(angle_y);
+    
+    double x = this.x * Cy - this.z * Sy;
+    double z = this.x * Sy + this.z * Cy;
+    
+    double a = x * (Cx + Cy * Cy * (1 - Cx)) + this.y * (-Sy * Sx) + z * (Cy * Sy * (1 - Cx));
+    double b = x * (Sy * Sx) + this.y * (Cx) + z * (-Cy * Sx);
+    double c = x * (Cy * Sy * (1 - Cx)) + this.y * (Cy * Sx) + z * (Cx + Sy * Sy * (1 - Cx));
+    
+    return new vector_t(a, b, c);
+  }
+  
   vector_t rotate_x(double angle) {
     return new vector_t(this.x, this.y * cos(angle) - this.z * sin(angle), this.y * sin(angle) + this.z * cos(angle));
   }

@@ -1,0 +1,274 @@
+#ifndef __S_INTRO_IJ__
+#define __S_INTRO_IJ__
+
+#include <player.ij>
+#include <render.ij>
+#include <light.ij>
+#include <scene.ij>
+
+#include <g_images.ij>
+
+#define INTRO_RETRO       0
+#define INTRO_RETRO_THROW 1
+#define INTRO_SELECT      2
+#define INTRO_COUNT       3
+
+// === s_intro.ij ===
+
+int intro_state = INTRO_RETRO;
+
+scene_t intro_scene;
+
+player_t intro_players[];
+int intro_object;
+
+int intro_retro_buffer[];
+double intro_retro_ms = 0.0;
+
+int intro_select = 0;
+double intro_select_angle = 0.0;
+
+void intro_init() {
+  intro_retro_buffer = new int[12288];
+  intro_players = new player_t[6];
+  
+  intro_scene = new scene_t(6000.0);
+  intro_scene.init_viewport(0.0, 0.0, SCREEN_SIZE, SCREEN_SIZE);
+  
+  intro_object = intro_scene.push_object(new object_t(new vector_t(0.0, 0.0, 2.0), 0.0, 0.0, new face_t[0]));
+  intro_scene.push_object(new object_t(new vector_t(0.0, 0.0, 0.0), 0.0, 0.0, g_decor_02));
+  
+  for (int i = 0; i < 6; i++) {
+    face_t model[];
+    
+    if (i == 0) model = g_red_kart;
+    if (i == 1) model = g_orange_kart;
+    if (i == 2) model = g_yellow_kart;
+    if (i == 3) model = g_green_kart;
+    if (i == 4) model = g_blue_kart;
+    if (i == 5) model = g_purple_kart;
+    
+    intro_scene.push_light(new light_t(true, new vector_t(0.0, 2.75, 10.25).rotate_y((i * PI) / -3.0), 20.0, 0.8, 0.9, 1.0));
+    intro_players[i] = new player_t(new vector_t(0.0, -2.0, 10.25).rotate_y((i * PI) / -3.0), intro_scene, model);
+  }
+  
+  intro_scene.push_light(new light_t(true, new vector_t(0.0, 18.0, 0.0), 30.0, 0.8, 0.9, 1.0));
+  intro_scene.push_light(new light_t(false, new vector_t(0.6, -0.5, 0.8).normal(), 0.75, 1.0, 1.0, 1.0));
+}
+
+void intro_fill_buffer() {
+  const double ms = millis();
+  
+  for (int i = 0; i < 64; i++) {
+    for (int j = 0; j < 64; j++) {
+      int x = ((j + 2560) + floor((ms / 64.0) % 256.0)) % 256;
+      int y = i + 56;
+      
+      for (int k = 0; k < 3; k++) {
+        intro_retro_buffer[j * 3 + i * 192 + k] = g_intro_png[x * 3 + y * 768 + k];
+      }
+    }
+  }
+  
+  for (int i = 0; i < 12; i++) {
+    for (int j = 0; j < 32; j++) {
+      int red;
+      int green;
+      int blue;
+      
+      if (((j / 4) + (i / 4)) % 2 == 0) {
+        red = 28;
+        green = 56;
+        blue = 172;
+      } else {
+        red = 60;
+        green = 212;
+        blue = 228;
+      }
+      
+      const int x = (j - i) + 21;
+      const int y = i + 10 + floor(sin(ms / 480.0 + j / 8.0) * 3);
+      
+      for (int dy = 0; dy < 2; dy++) {
+        for (int dx = 0; dx < 1; dx++) {
+          intro_retro_buffer[(x + dx) * 3 + (y + dy) * 192 + 0] = red;
+          intro_retro_buffer[(x + dx) * 3 + (y + dy) * 192 + 1] = green;
+          intro_retro_buffer[(x + dx) * 3 + (y + dy) * 192 + 2] = blue;
+        }
+      }
+    }
+  }
+  
+  font.b_text_shadow(intro_retro_buffer, 192, "KRAP KART!", 7, 12, 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.b_text_shadow(intro_retro_buffer, 192, "PRESS A KEY", 5, 55, 1, 255.0, 255.0, 255.0, 0.0, 0.0, 0.0);
+}
+
+void intro_push_buffer() {
+  face_t faces[] = new face_t[8192];
+  int face_count = 0;
+  
+  for (int _i = 0; _i < 64; _i++) {
+    const int i = 63 - _i;
+    
+    int p_red = -1;
+    int p_green = -1;
+    int p_blue = -1;
+    
+    int p_start = 0;
+    int p_count = 0;
+    
+    for (int j = 0; j < 64; j++) {
+      int red = intro_retro_buffer[j * 3 + _i * 192 + 0];
+      int green = intro_retro_buffer[j * 3 + _i * 192 + 1];
+      int blue = intro_retro_buffer[j * 3 + _i * 192 + 2];
+      
+      if ((p_red != red || p_green != green || p_blue != blue) && p_count > 0) {
+        faces[face_count + 0] = new face_t(
+          p_red, p_green, p_blue,
+          new vector_t(0.0, 0.0, 1.0),
+          
+          new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0),
+          new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0),
+          new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0)
+        );
+        
+        faces[face_count + 1] = new face_t(
+          p_red, p_green, p_blue,
+          new vector_t(0.0, 0.0, 1.0),
+          
+          new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0),
+          new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0),
+          new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0)
+        );
+        
+        face_count += 2;
+        
+        p_start = j;
+        p_count = 0;
+      }
+      
+      p_red = red;
+      p_green = green;
+      p_blue = blue;
+      
+      p_count++;
+    }
+    
+    if (p_count > 0) {
+      faces[face_count + 0] = new face_t(
+        p_red, p_green, p_blue,
+        new vector_t(0.0, 0.0, 1.0),
+        
+        new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0),
+        new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0),
+        new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0)
+      );
+      
+      faces[face_count + 1] = new face_t(
+        p_red, p_green, p_blue,
+        new vector_t(0.0, 0.0, 1.0),
+        
+        new vector_t((p_start + p_count) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0),
+        new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 1) * 0.0625 - 2.0, 0.0),
+        new vector_t((p_start + 0) * 0.0625 - 2.0, (i + 0) * 0.0625 - 2.0, 0.0)
+      );
+      
+      face_count += 2;
+    }
+  }
+  
+  intro_scene.objects[intro_object].faces = new face_t[face_count];
+  
+  for (int i = 0; i < face_count; i++) {
+    intro_scene.objects[intro_object].faces[i] = faces[i];
+  }
+}
+
+void intro_loop(double delta_ms) {
+  const double ms = millis();
+  
+  if (intro_state == INTRO_RETRO || intro_state == INTRO_RETRO_THROW) {
+    intro_fill_buffer();
+    profile.next("[s_intro] intro_fill_buffer()");
+    
+    intro_push_buffer();
+    profile.next("[s_intro] intro_push_buffer()");
+  }
+  
+  intro_scene.load_faces(new vector_t(0.0, 0.0, 0.0), 0.0, intro_select_angle);
+  profile.next("[s_intro] scene.load_faces()");
+  
+  intro_scene.draw_faces(render);
+  profile.next("[s_intro] scene.draw_faces()");
+  
+  if (intro_state == INTRO_RETRO_THROW) {
+    const double retro_z = (ms - intro_retro_ms) * 0.00375;
+    const double retro_y = retro_z * (4.0 - retro_z) * 0.5;
+    
+    intro_scene.objects[intro_object].point = new vector_t(0.0, retro_y, retro_z);
+    
+    intro_scene.objects[intro_object].angle_x = retro_z * 0.9;
+    intro_scene.objects[intro_object].angle_y = retro_z * 1.0;
+    
+    intro_scene.lights[intro_scene.light_count - 1].red *= pow(0.1, delta_ms / 1000.0);
+    intro_scene.lights[intro_scene.light_count - 1].green *= pow(0.1, delta_ms / 1000.0);
+    intro_scene.lights[intro_scene.light_count - 1].blue *= pow(0.1, delta_ms / 1000.0);
+    
+    if ((retro_z > 18.0 || retro_y < -9.0) && intro_scene.lights[intro_scene.light_count - 1].red < 0.05) {
+      intro_scene.free_object(intro_object);
+      intro_state = INTRO_SELECT;
+      
+      intro_scene.light_count--;
+    }
+  } else if (intro_state == INTRO_SELECT) {
+    const String text_0 = "KRAPKART 2";
+    font.text_shadow(render, text_0, (render.column_count - text_0.length() * FONT_WIDTH * 2) / 2, 12, R(1), 2, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+    
+    const String text_1 = "MADE BY SEGFAULTDEV!";
+    font.text_shadow(render, text_1, (render.column_count - text_1.length() * FONT_WIDTH) / 2, 27, R(1), 1, 255.0, 255.0, 255.0, 85.0, 85.0, 85.0);
+    
+    const String text_2 = "SELECT A KART, THEN [,]";
+    font.text_shadow(render, text_2, (render.column_count - text_2.length() * FONT_WIDTH) / 2, render.line_count - 26, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+    
+    const String text_3 = "<= [A]     [D] >?";
+    font.text_shadow(render, text_3, (render.column_count - text_3.length() * FONT_WIDTH) / 2, render.line_count - 16, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+  }
+  
+  if (intro_state == INTRO_RETRO_THROW || intro_state == INTRO_SELECT) {
+    for (int i = 0; i < 6; i++) {
+      intro_players[i].angle_y += delta_ms / 1000.0;
+      intro_players[i].update(0.0, intro_scene);
+    }
+    
+    const double target_angle = (intro_select * PI) / 3.0;
+    
+    if (abs(intro_select_angle - target_angle) < 0.01) {
+      intro_select_angle = target_angle;
+    } else {
+      intro_select_angle += (target_angle - intro_select_angle) * (1.0 - pow(0.1, delta_ms / 1000.0));
+    }
+  }
+}
+
+void intro_on_event(js_event_t event) {
+  if (intro_state == INTRO_RETRO) {
+    if (event.name == "key_pressed") {
+      intro_retro_ms = millis();
+      intro_state = INTRO_RETRO_THROW;
+    }
+  } else if (intro_state == INTRO_SELECT) {
+    if (event.name == "key_pressed") {
+      if (event.data_string[0] == "a" || event.data_string[0] == "left") {
+        intro_select--;
+      } else if (event.data_string[0] == "d" || event.data_string[0] == "right") {
+        intro_select++;
+      } else if (event.data_string[0] == ",") {
+        target_state = STATE_GAME;
+      }
+    }
+  }
+}
+
+// ^^^ s_intro.ij ^^^
+
+#endif
