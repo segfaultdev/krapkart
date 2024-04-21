@@ -14,21 +14,21 @@
 // - [x] Switch to requestAnimationFrame().
 // - [x] Preallocate all arrays in render (22% render speed-up).
 // - [x] Forcing "const" to go through the code generator (23% render speed-up).
-// - [ ] Implement per-object frustum culling.
-// - [ ] Implement per-face frustum culling (might be too slow, test first).
-// - [ ] Make lower-poly models for objects that are far away.
 
 // Features to-do list:
 // - [x] Fix editor page bar gradients.
 // - [x] Design height state for editor.
 // - [x] Implement player movement.
-// - [ ] Implement smart camera.
-// - [ ] Implement collision detection and laps.
+// - [x] Implement smart camera.
+// - [x] Implement vertical collision.
+// - [x] Implement horizontal collision.
+// - [ ] Implement checkpoints.
 // - [ ] Implement race replays.
 
 #define SCREEN_SIZE 128
 
-#define DECOR_Y -2.0
+#define DECOR_Y  -2.0
+#define PLAYER_Y 1.0
 
 #define STATE_GAME   0
 #define STATE_EDITOR 1

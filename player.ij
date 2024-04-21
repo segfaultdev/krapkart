@@ -22,7 +22,7 @@
 #define PLAYER_SPEED_H 200.0
 
 // Speed soft limit (m/s):
-#define PLAYER_SPEED_L 160.0
+#define PLAYER_SPEED_L 136.0
 
 // Accelerate rate (m/s²):
 #define PLAYER_ACCELERATE 70.0
@@ -122,14 +122,14 @@ class player_t {
     }
     
     if (this.inputs[INPUT_ACCELERATE] > 0) {
-      if (this.speed < PLAYER_SPEED_L) {
+      if (this.speed < PLAYER_SPEED_L * cos(this.wheel_angle * 2.5)) {
         this.speed += PLAYER_ACCELERATE * (delta_ms / 1000.0);
       }
     }
     
     if (this.inputs[INPUT_BRAKE] > 0) {
       if (this.speed <= 0.0) {
-        if (this.speed > -PLAYER_SPEED_L) {
+        if (this.speed > -PLAYER_SPEED_L * cos(this.wheel_angle * 2.5)) {
           this.speed -= PLAYER_REVERSE * (delta_ms / 1000.0);
         }
       } else {
@@ -150,6 +150,8 @@ class player_t {
     
     this.point = this.point.add(new vector_t(0.0, 0.0, 1.0).rotate_y(this.angle_y).multiply(move_length));
     this.angle_y -= this.wheel_angle * (move_length / axle_length);
+    
+    this.wheel_movement += move_length;
     
     scene.objects[this.kart_index].point = this.point;
     
@@ -178,7 +180,93 @@ class player_t {
       scene.objects[this.wheel_index[i]].angle_y = this.angle_y;
       
       if (i / 2 == 0) {
-        scene.objects[this.wheel_index[i]].angle_y -= this.wheel_angle;
+        scene.objects[this.wheel_index[i]].angle_y -= this.wheel_angle * 2.0;
+      }
+    }
+  }
+  
+  void collide(double delta_ms, scene_t scene, int track_objects[]) {
+    const int tile_z = floor((this.point.z * 0.5) / TRACK_SCALE);
+    const int tile_x = floor((this.point.x * 0.5 + this.point.z * 0.25) / TRACK_SCALE) + floor((this.point.x * 0.5 - this.point.z * 0.25) / TRACK_SCALE) - tile_z;
+    
+    if (tile_x < 0 || tile_z < 0 || tile_x >= TRACK_WIDTH || tile_z >= TRACK_HEIGHT) {
+      this.point.y = DECOR_Y * (TRACK_SCALE / 30.0) + PLAYER_Y;
+      this.angle_x = 0.0;
+      
+      return;
+    }
+    
+    const int object = track_objects[tile_x + tile_z * TRACK_WIDTH];
+    
+    if (scene.objects[object].cast_ray(this.point.subtract(scene.objects[object].point).subtract(new vector_t(0.0, PLAYER_Y, 0.0)), new vector_t(0.0, -1.0, 0.0), true)) {
+      this.point.y -= scene.objects[object].ray_length;
+      
+      const vector_t a = new vector_t(0.0, 0.0, 1.0).rotate_y(this.angle_y);
+      vector_t b = scene.objects[object].ray_normal;
+      
+      if (b.y < 0.0) {
+        b = b.multiply(-1.0);
+      }
+      
+      const double angle_x = PI * 0.5 - acos(a.dot(b) / (a.length() * b.length()));
+      this.angle_x += (angle_x - this.angle_x) * (1.0 - pow(0.1, delta_ms / 1000.0));
+    }
+    
+    if (this.point.y < DECOR_Y * (TRACK_SCALE / 30.0) + PLAYER_Y) {
+      this.point.y = DECOR_Y * (TRACK_SCALE / 30.0) + PLAYER_Y;
+    }
+    
+    for (int i = 0; i < 6; i++) {
+      const vector_t delta = new vector_t(0.0, 0.0, 1.0).rotate_y((i * PI) / 6.0);
+      
+      double ray_length;
+      vector_t ray_normal;
+      
+      bool ray_hit = false;
+      
+      for (int j = 0; j < 4; j++) {
+        int x = tile_x;
+        int z = tile_z;
+        
+        if (j == 1) {
+          x--;
+        } else if (j == 2) {
+          x++;
+        } else if (j == 3) {
+          if (tile_x % 2 == 0) {
+            x++;
+            z--;
+          } else {
+            x--;
+            z++;
+          }
+        }
+        
+        if (x < 0 || z < 0 || x >= TRACK_WIDTH || z >= TRACK_HEIGHT) {
+          continue;
+        }
+        
+        const int n_object = track_objects[x + z * TRACK_WIDTH];
+        
+        if (scene.objects[n_object].cast_ray(this.point.subtract(scene.objects[n_object].point), delta, false)) {
+          if (!ray_hit || abs(scene.objects[n_object].ray_length) < abs(ray_length)) {
+            ray_length = scene.objects[n_object].ray_length;
+            ray_hit = true;
+          }
+        }
+      }
+      
+      const double radius = scene.objects[this.kart_index].radius;
+      
+      if (ray_hit && abs(ray_length) < radius) {
+        if (ray_length > 0.0) {
+          this.point = this.point.add(delta.multiply(ray_length - radius));
+        } else {
+          this.point = this.point.add(delta.multiply(ray_length + radius));
+        }
+        
+        const double speed = this.speed * abs(delta.dot(new vector_t(1.0, 0.0, 0.0).rotate_y(this.angle_y)));
+        this.speed += (speed - this.speed) * (1.0 - pow(0.1, delta_ms / 1000.0));
       }
     }
   }

@@ -14,16 +14,15 @@
 // - [x] Switch to requestAnimationFrame().
 // - [x] Preallocate all arrays in render (22% render speed-up).
 // - [x] Forcing "const" to go through the code generator (23% render speed-up).
-// - [ ] Implement per-object frustum culling.
-// - [ ] Implement per-face frustum culling (might be too slow, test first).
-// - [ ] Make lower-poly models for objects that are far away.
 
 // Features to-do list:
 // - [x] Fix editor page bar gradients.
 // - [x] Design height state for editor.
-// - [ ] Implement player movement.
-// - [ ] Implement smart camera.
-// - [ ] Implement collision detection and laps.
+// - [x] Implement player movement.
+// - [x] Implement smart camera.
+// - [x] Implement vertical collision.
+// - [x] Implement horizontal collision.
+// - [ ] Implement checkpoints.
 // - [ ] Implement race replays.
 
 // === g_scripts.ij ===
@@ -579,9 +578,9 @@ class render_t {
     this.line_first[x1 + (this.column_count + 1) * y] = edge_x1;
   }
 
-  void push_top(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_top(boolean transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (x0 > x1) {
-      this.push_top(x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
+      this.push_top(transparent, x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
       return;
     }
 
@@ -598,7 +597,9 @@ class render_t {
     double curr_z1 = z2;
 
     for (int scan_y = y2; scan_y >= y0; scan_y--) {
-      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      if (!transparent || scan_y % 2 > 0) {
+        this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      }
 
       curr_x0 -= slope_x0;
       curr_x1 -= slope_x1;
@@ -608,9 +609,9 @@ class render_t {
     }
   }
 
-  void push_bottom(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_bottom(boolean transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (x1 > x2) {
-      this.push_bottom(x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
       return;
     }
 
@@ -627,7 +628,9 @@ class render_t {
     double curr_z1 = z0;
 
     for (int scan_y = y0; scan_y <= y1; scan_y++) {
-      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      if (!transparent || scan_y % 2 > 0) {
+        this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      }
 
       curr_x0 += slope_x0;
       curr_x1 += slope_x1;
@@ -637,7 +640,7 @@ class render_t {
     }
   }
 
-  void push_triangle(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_triangle(boolean transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (y0 > y1) {
       final int tx = x0;
       final int ty = y0;
@@ -681,9 +684,9 @@ class render_t {
     }
 
     if (y1 == y2) {
-      this.push_bottom(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
     } else if (y0 == y1) {
-      this.push_top(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+      this.push_top(transparent, x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
     } else {
       final double delta_1 = y1 - y0;
       final double delta_2 = y2 - y0;
@@ -691,8 +694,8 @@ class render_t {
       final int x3 = ceil((x0 + (delta_1 / delta_2) * (x2 - x0)));
       final double z3 = (z0 + (delta_1 / delta_2) * (z2 - z0));
 
-      this.push_bottom(x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
-      this.push_top(x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
+      this.push_top(transparent, x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
     }
   }
 
@@ -865,6 +868,12 @@ class font_t {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * 5 * scale + x;
 
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
+
       for (int j = 0; j < this.chars[index].normal_count; j++) {
         final f_span_t span = this.chars[index].normal_spans[j];
 
@@ -885,6 +894,12 @@ class font_t {
     for (int i = 0; i < length; i++) {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * 5 * scale + x;
+
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
 
       for (int j = 0; j < this.chars[index].shadow_count; j++) {
         final f_span_t span = this.chars[index].shadow_spans[j];
@@ -909,6 +924,12 @@ class font_t {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * 5 * scale + x;
 
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
+
       for (int j = 0; j < this.chars[index].normal_count; j++) {
         final f_span_t span = this.chars[index].normal_spans[j];
 
@@ -925,6 +946,12 @@ class font_t {
     for (int i = 0; i < length; i++) {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * 5 * scale + x;
+
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
 
       for (int j = 0; j < this.chars[index].shadow_count; j++) {
         final f_span_t span = this.chars[index].shadow_spans[j];
@@ -1376,11 +1403,11 @@ class unit_t {
         blue += (255.0 - blue) * 0.3;
       }
 
-      render.push_triangle(xa, ya, za, xb, yb, zb, xc, yc, zc, red, green, blue);
+      render.push_triangle(face.transparent, xa, ya, za, xb, yb, zb, xc, yc, zc, red, green, blue);
     }
   }
 
-  void load(scene_t scene, double x, double y, double z, double h0, double h1, double h2, boolean flip_z) {
+  int load(scene_t scene, double x, double y, double z, double h0, double h1, double h2, boolean flip_z) {
     final double tilt_3d = 0.03;
     int i = 0;
 
@@ -1476,7 +1503,7 @@ class unit_t {
       i++;
     }
 
-    scene.push_object(new object_t(
+    return scene.push_object(new object_t(
       new vector_t(x, y, z),
       0.0, 0.0,
 
@@ -1736,11 +1763,11 @@ void editor_unit_loop(double delta_ms) {
     final int y1 = render.line_count - 26;
 
     if (i > 0) {
-      render.push_triangle(ix, y0, (0.1 / (2)), ix, y1, (0.1 / (2)), px, y1, (0.1 / (2)), red, green, blue);
+      render.push_triangle(false, ix, y0, (0.1 / (2)), ix, y1, (0.1 / (2)), px, y1, (0.1 / (2)), red, green, blue);
     }
 
     if (i + 1 < 10) {
-      render.push_triangle(ix, y0, (0.1 / (2)), nx, y0, (0.1 / (2)), ix, y1, (0.1 / (2)), red, green, blue);
+      render.push_triangle(false, ix, y0, (0.1 / (2)), nx, y0, (0.1 / (2)), ix, y1, (0.1 / (2)), red, green, blue);
     }
   }
 
@@ -2008,6 +2035,10 @@ class vector_t {
     return new vector_t(this.x / length, this.y / length, this.z / length);
   }
 
+  double length_2() {
+    return this.x * this.x + this.y * this.y + this.z * this.z;
+  }
+
   double length() {
     return sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
   }
@@ -2177,14 +2208,14 @@ class player_t {
     }
 
     if (this.inputs[2] > 0) {
-      if (this.speed < 160.0) {
+      if (this.speed < 136.0 * cos(this.wheel_angle * 2.5)) {
         this.speed += 70.0 * (delta_ms / 1000.0);
       }
     }
 
     if (this.inputs[3] > 0) {
       if (this.speed <= 0.0) {
-        if (this.speed > -160.0) {
+        if (this.speed > -136.0 * cos(this.wheel_angle * 2.5)) {
           this.speed -= 20.0 * (delta_ms / 1000.0);
         }
       } else {
@@ -2205,6 +2236,8 @@ class player_t {
 
     this.point = this.point.add(new vector_t(0.0, 0.0, 1.0).rotate_y(this.angle_y).multiply(move_length));
     this.angle_y -= this.wheel_angle * (move_length / axle_length);
+
+    this.wheel_movement += move_length;
 
     scene.objects[this.kart_index].point = this.point;
 
@@ -2233,7 +2266,93 @@ class player_t {
       scene.objects[this.wheel_index[i]].angle_y = this.angle_y;
 
       if (i / 2 == 0) {
-        scene.objects[this.wheel_index[i]].angle_y -= this.wheel_angle;
+        scene.objects[this.wheel_index[i]].angle_y -= this.wheel_angle * 2.0;
+      }
+    }
+  }
+
+  void collide(double delta_ms, scene_t scene, int track_objects[]) {
+    final int tile_z = floor((this.point.z * 0.5) / 60);
+    final int tile_x = floor((this.point.x * 0.5 + this.point.z * 0.25) / 60) + floor((this.point.x * 0.5 - this.point.z * 0.25) / 60) - tile_z;
+
+    if (tile_x < 0 || tile_z < 0 || tile_x >= 20 || tile_z >= 10) {
+      this.point.y = -2.0 * (60 / 30.0) + 1.0;
+      this.angle_x = 0.0;
+
+      return;
+    }
+
+    final int object = track_objects[tile_x + tile_z * 20];
+
+    if (scene.objects[object].cast_ray(this.point.subtract(scene.objects[object].point).subtract(new vector_t(0.0, 1.0, 0.0)), new vector_t(0.0, -1.0, 0.0), true)) {
+      this.point.y -= scene.objects[object].ray_length;
+
+      final vector_t a = new vector_t(0.0, 0.0, 1.0).rotate_y(this.angle_y);
+      vector_t b = scene.objects[object].ray_normal;
+
+      if (b.y < 0.0) {
+        b = b.multiply(-1.0);
+      }
+
+      final double angle_x = PI * 0.5 - acos(a.dot(b) / (a.length() * b.length()));
+      this.angle_x += (angle_x - this.angle_x) * (1.0 - pow(0.1, delta_ms / 1000.0));
+    }
+
+    if (this.point.y < -2.0 * (60 / 30.0) + 1.0) {
+      this.point.y = -2.0 * (60 / 30.0) + 1.0;
+    }
+
+    for (int i = 0; i < 6; i++) {
+      final vector_t delta = new vector_t(0.0, 0.0, 1.0).rotate_y((i * PI) / 6.0);
+
+      double ray_length;
+      vector_t ray_normal;
+
+      boolean ray_hit = false;
+
+      for (int j = 0; j < 4; j++) {
+        int x = tile_x;
+        int z = tile_z;
+
+        if (j == 1) {
+          x--;
+        } else if (j == 2) {
+          x++;
+        } else if (j == 3) {
+          if (tile_x % 2 == 0) {
+            x++;
+            z--;
+          } else {
+            x--;
+            z++;
+          }
+        }
+
+        if (x < 0 || z < 0 || x >= 20 || z >= 10) {
+          continue;
+        }
+
+        final int n_object = track_objects[x + z * 20];
+
+        if (scene.objects[n_object].cast_ray(this.point.subtract(scene.objects[n_object].point), delta, false)) {
+          if (!ray_hit || abs(scene.objects[n_object].ray_length) < abs(ray_length)) {
+            ray_length = scene.objects[n_object].ray_length;
+            ray_hit = true;
+          }
+        }
+      }
+
+      final double radius = scene.objects[this.kart_index].radius;
+
+      if (ray_hit && abs(ray_length) < radius) {
+        if (ray_length > 0.0) {
+          this.point = this.point.add(delta.multiply(ray_length - radius));
+        } else {
+          this.point = this.point.add(delta.multiply(ray_length + radius));
+        }
+
+        final double speed = this.speed * abs(delta.dot(new vector_t(1.0, 0.0, 0.0).rotate_y(this.angle_y)));
+        this.speed += (speed - this.speed) * (1.0 - pow(0.1, delta_ms / 1000.0));
       }
     }
   }
@@ -2279,6 +2398,9 @@ class object_t {
   face_t faces[];
   double radius;
 
+  double ray_length;
+  vector_t ray_normal;
+
   object_t() {
     this.free = true;
   }
@@ -2311,6 +2433,92 @@ class object_t {
       }
     }
   }
+
+  /*
+  bool beam_ray(vector_t point, vector_t normal) {
+    bool ray_hit = false;
+    
+    double ray_length;
+    vector_t ray_normal;
+    
+    const double a = point.dot(this.faces[i].normal);
+    
+    for (int i = 0; i < this.faces.length; i++) {
+      const double b = this.faces[i].a.dot(this.faces[i].normal);
+      
+      const double dy = (normal.x * this.faces[i].normal.z - this.faces[i].normal.x * normal.z) / (this.faces[i].normal.y * normal.z - normal.y * this.faces[i].normal.z);
+      const double dz = (normal.x - normal.y * dy) / normal.z;
+      
+      const double py = (normal.z * b - this.faces[i].normal.z * a) / (this.faces[i].normal.y * normal.z - normal.y * this.faces[i].normal.z);
+      const double pz = (a - normal.y * py) / normal.z;
+      
+      const vector_t delta = new vector_t(1.0, dy, dz);
+      const vector_t point = new vector_t(0.0, py, pz);
+      
+      
+    }
+  }
+  */
+
+  boolean cast_ray(vector_t point, vector_t delta, boolean do_sign) {
+    boolean ray_hit = false;
+
+    double ray_length;
+    vector_t ray_normal;
+
+    for (int i = 0; i < this.faces.length; i++) {
+      final vector_t normal = this.faces[i].a.subtract(this.faces[i].b).cross(this.faces[i].a.subtract(this.faces[i].c));
+      final double base = normal.dot(delta);
+
+      if (base == 0.0) {
+        continue;
+      }
+
+      if (!do_sign) {
+        final double cos_face = abs(base / (delta.length() * normal.length()));
+
+        if (cos_face < 0.707) {
+          continue;
+        }
+      }
+
+      final double lambda = normal.dot(this.faces[i].a.subtract(point)) / base;
+      final double length = lambda * delta.length();
+
+      if (do_sign && length < -5.0) {
+        continue;
+      }
+
+      final vector_t ray_point = point.add(delta.multiply(lambda));
+      final double t_area = normal.length_2();
+
+      if (t_area == 0.0) {
+        continue;
+      }
+
+      final double b_area = this.faces[i].b.subtract(this.faces[i].a).cross(ray_point.subtract(this.faces[i].a)).dot(normal) / t_area;
+      final double c_area = ray_point.subtract(this.faces[i].a).cross(this.faces[i].c.subtract(this.faces[i].a)).dot(normal) / t_area;
+      final double a_area = 1.0 - (b_area + c_area);
+
+      if (a_area < -0.001 || a_area > 1.001 || b_area < -0.001 || b_area > 1.001 || c_area < -0.001 || c_area > 1.001) {
+        continue;
+      }
+
+      if (!ray_hit || (do_sign && length < ray_length) || (!do_sign && abs(length) < abs(ray_length))) {
+        ray_length = length;
+        ray_normal = normal;
+
+        ray_hit = true;
+      }
+    }
+
+    if (ray_hit) {
+      this.ray_length = ray_length;
+      this.ray_normal = ray_normal;
+    }
+
+    return ray_hit;
+  }
 };
 
 // ^^^ object.ij ^^^
@@ -2318,6 +2526,8 @@ class object_t {
 // === face.ij ===
 
 class face_t {
+  boolean transparent;
+
   double red;
   double green;
   double blue;
@@ -2333,6 +2543,22 @@ class face_t {
   }
 
   face_t(double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.transparent = false;
+
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+
+    this.a = a;
+    this.b = b;
+    this.c = c;
+
+    this.normal = normal;
+  }
+
+  face_t(boolean transparent, double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.transparent = transparent;
+
     this.red = red;
     this.green = green;
     this.blue = blue;
@@ -2454,31 +2680,31 @@ class scene_t {
           next_faces[next_face_count] = next_face;
           next_face_count++;
         } else if (dist_a >= 0.0 && dist_b >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
           next_face_count++;
 
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
           next_face_count++;
         } else if (dist_b >= 0.0 && dist_c >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
           next_face_count++;
 
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
           next_face_count++;
         } else if (dist_c >= 0.0 && dist_a >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
           next_face_count++;
 
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
           next_face_count++;
         } else if (dist_a >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
           next_face_count++;
         } else if (dist_b >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
           next_face_count++;
         } else if (dist_c >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
           next_face_count++;
         }
       }
@@ -2563,6 +2789,8 @@ class scene_t {
         }
 
         load_single(new face_t(
+          face.transparent,
+
           face.red * shade_red,
           face.green * shade_green,
           face.blue * shade_blue,
@@ -2593,7 +2821,7 @@ class scene_t {
       final double y2 = this.center_y - (face.c.y / face.c.z) * this.half_length;
       final double z2 = face.c.z;
 
-      render.push_triangle(floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
+      render.push_triangle(face.transparent, floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
     }
   }
 };
@@ -2820,7 +3048,7 @@ void intro_loop(double delta_ms) {
     final String text_1 = "MADE BY SEGFAULTDEV!";
     font.text_shadow(render, text_1, (render.column_count - text_1.length() * 5) / 2, 27, (0.1 / (1)), 1, 255.0, 255.0, 255.0, 85.0, 85.0, 85.0);
 
-    final String text_2 = "SELECT A CAR, THEN [,]";
+    final String text_2 = "SELECT A KART, THEN [,]";
     font.text_shadow(render, text_2, (render.column_count - text_2.length() * 5) / 2, render.line_count - 26, (0.1 / (1)), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
 
     final String text_3 = "<= [A]     [D] >?";
@@ -13507,13 +13735,16 @@ final face_t g_yellow_kart[] = {
 
 // === s_game.ij ===
 
-int camera_mode = 0;
+int camera_mode = 2;
 scene_t scene;
 
 player_t player;
 vector_t camera;
 
 double camera_angle;
+boolean no_press;
+
+int track_objects[];
 
 void game_init() {
   scene = new scene_t(6000.0);
@@ -13522,6 +13753,7 @@ void game_init() {
   player = new player_t(new vector_t(0.0, 0.0, 0.0), scene, g_red_kart);
   camera = new vector_t(0.0, 0.0, 0.0);
 
+  track_objects = new int[20 * 10];
   camera_angle = 0.0;
 
   for (int i = 0; i < 10; i++) {
@@ -13544,13 +13776,14 @@ void game_init() {
       }
 
       final unit_t unit = units[j + i * 20];
-      unit.load(scene, x, 0.0, z, h0, h1, h2, (j % 2) > 0);
+      track_objects[j + i * 20] = unit.load(scene, x, 0.0, z, h0, h1, h2, (j % 2) > 0);
     }
   }
 
-  scene.push_object(new object_t(new vector_t(20 * 60 * 0.75, -2.0 * 60, 10 * 60), 0.0, 0.0, g_decor_01));
+  scene.push_object(new object_t(new vector_t(20 * 60 * 0.75, -2.0 * (60 / 30.0) - 15.0, 10 * 60), 0.0, 0.0, g_decor_01));
 
   scene.push_light(new light_t(false, new vector_t(0.8, -1.0, 0.6).normal(), 0.3, 1.0, 1.0, 1.0));
+  no_press = true;
 }
 
 void game_loop(double delta_ms) {
@@ -13563,7 +13796,7 @@ void game_loop(double delta_ms) {
   }
 
   if (camera_mode == 1) {
-    target_camera = new vector_t(0.0, 25.0, -5.0);
+    target_camera = new vector_t(0.0, 45.0, -5.0);
     target_camera_angle = -PI / 3.0;
   }
 
@@ -13575,10 +13808,15 @@ void game_loop(double delta_ms) {
   camera = camera.add(target_camera.subtract(camera).multiply(1.0 - pow(0.1, delta_ms / 1000.0)));
   camera_angle = camera_angle + (target_camera_angle - camera_angle) * (1.0 - pow(0.1, delta_ms / 1000.0));
 
+  profile.next("[s_game] Update player camera");
+
+  player.collide(delta_ms, scene, track_objects);
+  profile.next("[s_game] player.collide()");
+
   player.update(delta_ms, scene);
   profile.next("[s_game] player.update()");
 
-  scene.load_faces(player.point.add(camera.rotate_xy(player.angle_x, player.angle_y)), camera_angle - player.angle_x, -player.angle_y);
+  scene.load_faces(player.point.add(camera.rotate_cylinder(player.angle_x, player.angle_y)), camera_angle - player.angle_x, -player.angle_y);
   profile.next("[s_game] scene.load_faces()");
 
   scene.draw_faces(render);
@@ -13591,11 +13829,31 @@ void game_loop(double delta_ms) {
   }
 
   font.text_shadow(render, speed, 7, render.line_count - 15, (0.1 / (1)), 2, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
-  font.text_shadow(render, "KM/H", 37, render.line_count - 12, (0.1 / (1)), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "KM/H", 38, render.line_count - 11, (0.1 / (1)), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+
+  font.text_shadow(render, "X " + round(player.point.x * 100.0) / 100.0, 0, 5, (0.1 / (1)), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "Y " + round(player.point.y * 100.0) / 100.0, 0, 10, (0.1 / (1)), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "Z " + round(player.point.z * 100.0) / 100.0, 0, 15, (0.1 / (1)), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+
+  if (no_press) {
+    final String text_0 = "ACCELERATE [,]";
+    font.text_shadow(render, text_0, (render.column_count - text_0.length() * 5) / 2, render.line_count - 41, (0.1 / (1)), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+
+    final String text_1 = "BRAKE [.]";
+    font.text_shadow(render, text_1, (render.column_count - text_1.length() * 5) / 2, render.line_count - 36, (0.1 / (1)), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+
+    final String text_2 = "CAMERA [-]";
+    font.text_shadow(render, text_2, (render.column_count - text_2.length() * 5) / 2, render.line_count - 31, (0.1 / (1)), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+
+    final String text_3 = "TURN [A] / [D]";
+    font.text_shadow(render, text_3, (render.column_count - text_3.length() * 5) / 2, render.line_count - 26, (0.1 / (1)), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+  }
 }
 
 void game_on_event(js_event_t event) {
   if (event.name == "key_pressed") {
+    no_press = false;
+
     if (event.data_string[0] == "a") {
       player.inputs[0]++;
     } else if (event.data_string[0] == "d") {

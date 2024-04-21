@@ -252,11 +252,11 @@ void editor_unit_loop(double delta_ms) {
     const int y1 = render.line_count - 26;
     
     if (i > 0) {
-      render.push_triangle(ix, y0, R(2), ix, y1, R(2), px, y1, R(2), red, green, blue);
+      render.push_triangle(false, ix, y0, R(2), ix, y1, R(2), px, y1, R(2), red, green, blue);
     }
     
     if (i + 1 < 10) {
-      render.push_triangle(ix, y0, R(2), nx, y0, R(2), ix, y1, R(2), red, green, blue);
+      render.push_triangle(false, ix, y0, R(2), nx, y0, R(2), ix, y1, R(2), red, green, blue);
     }
   }
   

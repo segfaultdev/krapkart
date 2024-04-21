@@ -13,6 +13,9 @@ class object_t {
   face_t faces[];
   double radius;
   
+  double ray_length;
+  vector_t ray_normal;
+  
   object_t() {
     this.free = true;
   }
@@ -44,6 +47,92 @@ class object_t {
         this.radius = radius_c;
       }
     }
+  }
+  
+  /*
+  bool beam_ray(vector_t point, vector_t normal) {
+    bool ray_hit = false;
+    
+    double ray_length;
+    vector_t ray_normal;
+    
+    const double a = point.dot(this.faces[i].normal);
+    
+    for (int i = 0; i < this.faces.length; i++) {
+      const double b = this.faces[i].a.dot(this.faces[i].normal);
+      
+      const double dy = (normal.x * this.faces[i].normal.z - this.faces[i].normal.x * normal.z) / (this.faces[i].normal.y * normal.z - normal.y * this.faces[i].normal.z);
+      const double dz = (normal.x - normal.y * dy) / normal.z;
+      
+      const double py = (normal.z * b - this.faces[i].normal.z * a) / (this.faces[i].normal.y * normal.z - normal.y * this.faces[i].normal.z);
+      const double pz = (a - normal.y * py) / normal.z;
+      
+      const vector_t delta = new vector_t(1.0, dy, dz);
+      const vector_t point = new vector_t(0.0, py, pz);
+      
+      
+    }
+  }
+  */
+  
+  bool cast_ray(vector_t point, vector_t delta, bool do_sign) {
+    bool ray_hit = false;
+    
+    double ray_length;
+    vector_t ray_normal;
+    
+    for (int i = 0; i < this.faces.length; i++) {
+      const vector_t normal = this.faces[i].a.subtract(this.faces[i].b).cross(this.faces[i].a.subtract(this.faces[i].c));
+      const double base = normal.dot(delta);
+      
+      if (base == 0.0) {
+        continue;
+      }
+      
+      if (!do_sign) {
+        const double cos_face = abs(base / (delta.length() * normal.length()));
+        
+        if (cos_face < 0.707) {
+          continue;
+        }
+      }
+      
+      const double lambda = normal.dot(this.faces[i].a.subtract(point)) / base;
+      const double length = lambda * delta.length();
+      
+      if (do_sign && length < -5.0) {
+        continue;
+      }
+      
+      const vector_t ray_point = point.add(delta.multiply(lambda));
+      const double t_area = normal.length_2();
+      
+      if (t_area == 0.0) {
+        continue;
+      }
+      
+      const double b_area = this.faces[i].b.subtract(this.faces[i].a).cross(ray_point.subtract(this.faces[i].a)).dot(normal) / t_area;
+      const double c_area = ray_point.subtract(this.faces[i].a).cross(this.faces[i].c.subtract(this.faces[i].a)).dot(normal) / t_area;
+      const double a_area = 1.0 - (b_area + c_area);
+      
+      if (a_area < -0.001 || a_area > 1.001 || b_area < -0.001 || b_area > 1.001 || c_area < -0.001 || c_area > 1.001) {
+        continue;
+      }
+      
+      if (!ray_hit || (do_sign && length < ray_length) || (!do_sign && abs(length) < abs(ray_length))) {
+        ray_length = length;
+        ray_normal = normal;
+        
+        ray_hit = true;
+      }
+    }
+    
+    if (ray_hit) {
+      this.ray_length = ray_length;
+      this.ray_normal = ray_normal;
+    }
+    
+    return ray_hit;
   }
 };
 

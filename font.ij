@@ -107,6 +107,12 @@ class font_t {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * FONT_WIDTH * scale + x;
       
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
+      
       for (int j = 0; j < this.chars[index].normal_count; j++) {
         const f_span_t span = this.chars[index].normal_spans[j];
         
@@ -127,6 +133,12 @@ class font_t {
     for (int i = 0; i < length; i++) {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * FONT_WIDTH * scale + x;
+      
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
       
       for (int j = 0; j < this.chars[index].shadow_count; j++) {
         const f_span_t span = this.chars[index].shadow_spans[j];
@@ -151,6 +163,12 @@ class font_t {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * FONT_WIDTH * scale + x;
       
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
+      
       for (int j = 0; j < this.chars[index].normal_count; j++) {
         const f_span_t span = this.chars[index].normal_spans[j];
         
@@ -167,6 +185,12 @@ class font_t {
     for (int i = 0; i < length; i++) {
       int index = ((int)(string.charAt(i))) - 32;
       int delta_x = i * FONT_WIDTH * scale + x;
+      
+      if (index < 0 || index >= 96) {
+        continue;
+      } else if (index >= 64) {
+        index -= 32;
+      }
       
       for (int j = 0; j < this.chars[index].shadow_count; j++) {
         const f_span_t span = this.chars[index].shadow_spans[j];

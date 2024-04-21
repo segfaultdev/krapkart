@@ -126,31 +126,31 @@ class scene_t {
           next_faces[next_face_count] = next_face;
           next_face_count++;
         } else if (dist_a >= 0.0 && dist_b >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, next_face.b, normal.plane(next_face.a, next_face.c));
           next_face_count++;
           
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.a, next_face.c));
           next_face_count++;
         } else if (dist_b >= 0.0 && dist_c >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, next_face.c, normal.plane(next_face.b, next_face.a));
           next_face_count++;
           
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.b, next_face.a));
           next_face_count++;
         } else if (dist_c >= 0.0 && dist_a >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, next_face.a, normal.plane(next_face.c, next_face.b));
           next_face_count++;
           
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.c, next_face.b));
           next_face_count++;
         } else if (dist_a >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.a, normal.plane(next_face.a, next_face.b), normal.plane(next_face.a, next_face.c));
           next_face_count++;
         } else if (dist_b >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.b, normal.plane(next_face.b, next_face.c), normal.plane(next_face.b, next_face.a));
           next_face_count++;
         } else if (dist_c >= 0.0) {
-          next_faces[next_face_count] = new face_t(next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
+          next_faces[next_face_count] = new face_t(next_face.transparent, next_face.red, next_face.green, next_face.blue, next_face.normal, next_face.c, normal.plane(next_face.c, next_face.a), normal.plane(next_face.c, next_face.b));
           next_face_count++;
         }
       }
@@ -235,6 +235,8 @@ class scene_t {
         }
         
         load_single(new face_t(
+          face.transparent,
+          
           face.red * shade_red,
           face.green * shade_green,
           face.blue * shade_blue,
@@ -265,7 +267,7 @@ class scene_t {
       const double y2 = this.center_y - (face.c.y / face.c.z) * this.half_length;
       const double z2 = face.c.z;
       
-      render.push_triangle(floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
+      render.push_triangle(face.transparent, floor(x0), floor(y0), z0, floor(x1), floor(y1), z1, floor(x2), floor(y2), z2, face.red, face.green, face.blue);
     }
   }
 };

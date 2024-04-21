@@ -16,13 +16,16 @@
 
 // === s_game.ij ===
 
-int camera_mode = CAMERA_NEAR;
+int camera_mode = CAMERA_FIRST;
 scene_t scene;
 
 player_t player;
 vector_t camera;
 
 double camera_angle;
+bool no_press;
+
+int track_objects[];
 
 void game_init() {
   scene = new scene_t(6000.0);
@@ -31,6 +34,7 @@ void game_init() {
   player = new player_t(new vector_t(0.0, 0.0, 0.0), scene, g_red_kart);
   camera = new vector_t(0.0, 0.0, 0.0);
   
+  track_objects = new int[TRACK_WIDTH * TRACK_HEIGHT];
   camera_angle = 0.0;
   
   for (int i = 0; i < TRACK_HEIGHT; i++) {
@@ -53,13 +57,14 @@ void game_init() {
       }
       
       const unit_t unit = units[j + i * TRACK_WIDTH];
-      unit.load(scene, x, 0.0, z, h0, h1, h2, (j % 2) > 0);
+      track_objects[j + i * TRACK_WIDTH] = unit.load(scene, x, 0.0, z, h0, h1, h2, (j % 2) > 0);
     }
   }
   
-  scene.push_object(new object_t(new vector_t(TRACK_WIDTH * TRACK_SCALE * 0.75, DECOR_Y * TRACK_SCALE, TRACK_HEIGHT * TRACK_SCALE), 0.0, 0.0, g_decor_01));
+  scene.push_object(new object_t(new vector_t(TRACK_WIDTH * TRACK_SCALE * 0.75, DECOR_Y * (TRACK_SCALE / 30.0) - 15.0, TRACK_HEIGHT * TRACK_SCALE), 0.0, 0.0, g_decor_01));
   
   scene.push_light(new light_t(false, new vector_t(0.8, -1.0, 0.6).normal(), 0.3, 1.0, 1.0, 1.0));
+  no_press = true;
 }
 
 void game_loop(double delta_ms) {
@@ -72,7 +77,7 @@ void game_loop(double delta_ms) {
   }
   
   if (camera_mode == CAMERA_EAGLE) {
-    target_camera = new vector_t(0.0, 25.0, -5.0);
+    target_camera = new vector_t(0.0, 45.0, -5.0);
     target_camera_angle = -PI / 3.0;
   }
   
@@ -84,10 +89,15 @@ void game_loop(double delta_ms) {
   camera = camera.add(target_camera.subtract(camera).multiply(1.0 - pow(0.1, delta_ms / 1000.0)));
   camera_angle = camera_angle + (target_camera_angle - camera_angle) * (1.0 - pow(0.1, delta_ms / 1000.0));
   
+  profile.next("[s_game] Update player camera");
+  
+  player.collide(delta_ms, scene, track_objects);
+  profile.next("[s_game] player.collide()");
+  
   player.update(delta_ms, scene);
   profile.next("[s_game] player.update()");
   
-  scene.load_faces(player.point.add(camera.rotate_xy(player.angle_x, player.angle_y)), camera_angle - player.angle_x, -player.angle_y);
+  scene.load_faces(player.point.add(camera.rotate_cylinder(player.angle_x, player.angle_y)), camera_angle - player.angle_x, -player.angle_y);
   profile.next("[s_game] scene.load_faces()");
   
   scene.draw_faces(render);
@@ -100,11 +110,31 @@ void game_loop(double delta_ms) {
   }
   
   font.text_shadow(render, speed, 7, render.line_count - 15, R(1), 2, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
-  font.text_shadow(render, "KM/H", 37, render.line_count - 12, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "KM/H", 38, render.line_count - 11, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  
+  font.text_shadow(render, "X " + round(player.point.x * 100.0) / 100.0, 0, 5, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "Y " + round(player.point.y * 100.0) / 100.0, 0, 10, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  font.text_shadow(render, "Z " + round(player.point.z * 100.0) / 100.0, 0, 15, R(1), 1, 255.0, 255.0, 85.0, 255.0, 170.0, 85.0);
+  
+  if (no_press) {
+    const String text_0 = "ACCELERATE [,]";
+    font.text_shadow(render, text_0, (render.column_count - text_0.length() * FONT_WIDTH) / 2, render.line_count - 41, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+    
+    const String text_1 = "BRAKE [.]";
+    font.text_shadow(render, text_1, (render.column_count - text_1.length() * FONT_WIDTH) / 2, render.line_count - 36, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+    
+    const String text_2 = "CAMERA [-]";
+    font.text_shadow(render, text_2, (render.column_count - text_2.length() * FONT_WIDTH) / 2, render.line_count - 31, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+    
+    const String text_3 = "TURN [A] / [D]";
+    font.text_shadow(render, text_3, (render.column_count - text_3.length() * FONT_WIDTH) / 2, render.line_count - 26, R(1), 1, 170.0, 170.0, 170.0, 85.0, 85.0, 85.0);
+  }
 }
 
 void game_on_event(js_event_t event) {
   if (event.name == "key_pressed") {
+    no_press = false;
+    
     if (event.data_string[0] == "a") {
       player.inputs[INPUT_TURN_L]++;
     } else if (event.data_string[0] == "d") {

@@ -294,9 +294,9 @@ class render_t {
     this.line_first[x1 + (this.column_count + 1) * y] = edge_x1;
   }
   
-  void push_top(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_top(bool transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (x0 > x1) {
-      this.push_top(x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
+      this.push_top(transparent, x1, y1, z1, x0, y0, z0, x2, y2, z2, red, green, blue);
       return;
     }
     
@@ -313,7 +313,9 @@ class render_t {
     double curr_z1 = z2;
     
     for (int scan_y = y2; scan_y >= y0; scan_y--) {
-      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      if (!transparent || scan_y % 2 > 0) {
+        this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      }
       
       curr_x0 -= slope_x0;
       curr_x1 -= slope_x1;
@@ -323,9 +325,9 @@ class render_t {
     }
   }
   
-  void push_bottom(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_bottom(bool transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (x1 > x2) {
-      this.push_bottom(x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x2, y2, z2, x1, y1, z1, red, green, blue);
       return;
     }
     
@@ -342,7 +344,9 @@ class render_t {
     double curr_z1 = z0;
     
     for (int scan_y = y0; scan_y <= y1; scan_y++) {
-      this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      if (!transparent || scan_y % 2 > 0) {
+        this.push_span(scan_y, floor(curr_x0 + 0.000001), curr_z0, ceil(curr_x1), curr_z1, red, green, blue);
+      }
       
       curr_x0 += slope_x0;
       curr_x1 += slope_x1;
@@ -352,7 +356,7 @@ class render_t {
     }
   }
     
-  void push_triangle(int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
+  void push_triangle(bool transparent, int x0, int y0, double z0, int x1, int y1, double z1, int x2, int y2, double z2, double red, double green, double blue) {
     if (y0 > y1) {
       const int tx = x0;
       const int ty = y0;
@@ -396,9 +400,9 @@ class render_t {
     }
     
     if (y1 == y2) {
-      this.push_bottom(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
     } else if (y0 == y1) {
-      this.push_top(x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
+      this.push_top(transparent, x0, y0, z0, x1, y1, z1, x2, y2, z2, red, green, blue);
     } else {
       const double delta_1 = y1 - y0;
       const double delta_2 = y2 - y0;
@@ -406,8 +410,8 @@ class render_t {
       const int x3 = ceil((x0 + (delta_1 / delta_2) * (x2 - x0)));
       const double z3 = (z0 + (delta_1 / delta_2) * (z2 - z0));
       
-      this.push_bottom(x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
-      this.push_top(x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
+      this.push_bottom(transparent, x0, y0, z0, x1, y1, z1, x3, y1, z3, red, green, blue);
+      this.push_top(transparent, x1, y1, z1, x3, y1, z3, x2, y2, z2, red, green, blue);
     }
   }
   

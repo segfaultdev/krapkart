@@ -6,6 +6,8 @@
 // === face.ij ===
 
 class face_t {
+  bool transparent;
+  
   double red;
   double green;
   double blue;
@@ -21,6 +23,22 @@ class face_t {
   }
   
   face_t(double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.transparent = false;
+    
+    this.red = red;
+    this.green = green;
+    this.blue = blue;
+    
+    this.a = a;
+    this.b = b;
+    this.c = c;
+    
+    this.normal = normal;
+  }
+  
+  face_t(bool transparent, double red, double green, double blue, vector_t normal, vector_t a, vector_t b, vector_t c) {
+    this.transparent = transparent;
+    
     this.red = red;
     this.green = green;
     this.blue = blue;

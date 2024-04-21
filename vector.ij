@@ -35,6 +35,10 @@ class vector_t {
     return new vector_t(this.x / length, this.y / length, this.z / length);
   }
   
+  double length_2() {
+    return this.x * this.x + this.y * this.y + this.z * this.z;
+  }
+  
   double length() {
     return sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
   }

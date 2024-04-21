@@ -453,11 +453,11 @@ class unit_t {
         blue += (255.0 - blue) * 0.3;
       }
       
-      render.push_triangle(xa, ya, za, xb, yb, zb, xc, yc, zc, red, green, blue);
+      render.push_triangle(face.transparent, xa, ya, za, xb, yb, zb, xc, yc, zc, red, green, blue);
     }
   }
   
-  void load(scene_t scene, double x, double y, double z, double h0, double h1, double h2, bool flip_z) {
+  int load(scene_t scene, double x, double y, double z, double h0, double h1, double h2, bool flip_z) {
     const double tilt_3d = 0.03;
     int i = 0;
     
@@ -553,7 +553,7 @@ class unit_t {
       i++;
     }
     
-    scene.push_object(new object_t(
+    return scene.push_object(new object_t(
       new vector_t(x, y, z),
       0.0, 0.0,
       
